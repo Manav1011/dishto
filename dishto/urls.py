@@ -20,12 +20,17 @@ from fastapi import APIRouter
 from .views import root, healthcheck
 from Restaurant.views import router as restaurant_router
 from Profile.views import router as profile_router
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 # django urls
 urlpatterns = [
     path('admin/', admin.site.urls)
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 base_router = APIRouter()
 

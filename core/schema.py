@@ -35,3 +35,4 @@ class BaseResponse(CamelCaseModel, Generic[BaseDataField]):
     status: str = constants.SUCCESS
     code: int = st.HTTP_200_OK
     data: BaseDataField | None = None
+    
