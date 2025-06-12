@@ -5,3 +5,6 @@ async def get_queryset(func, *args, **kwargs):
 
 async def get_object(func, *args, **kwargs):
     return await sync_to_async(func)(*args, **kwargs)
+
+async def is_valid_async(serializer):
+    return await sync_to_async(serializer.is_valid)()

@@ -5,6 +5,7 @@ from dishto.middleware import setup_middleware
 from dishto.utils.schema import BaseValidationResponse
 from dishto.urls import base_router
 
+
 def get_fastapi_application() -> FastAPI:
     """
     Initializes and configures a FastAPI application instance.

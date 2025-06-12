@@ -18,6 +18,9 @@ from django.contrib import admin
 from django.urls import path
 from fastapi import APIRouter
 from .views import root, healthcheck
+from Restaurant.views import router as restaurant_router
+from Profile.views import router as profile_router
+
 
 # django urls
 urlpatterns = [
@@ -28,3 +31,8 @@ base_router = APIRouter()
 
 base_router.add_api_route("/", root, methods=["GET"], name="root")
 base_router.add_api_route("/healthcheck", healthcheck, methods=["GET"], name="healthcheck")
+
+# restaurant urls
+base_router.include_router(restaurant_router)
+# profile urls
+base_router.include_router(profile_router)

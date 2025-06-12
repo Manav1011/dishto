@@ -26,8 +26,7 @@ APP_VERSION = "1.0.0"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -38,6 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    "rest_framework",
+    'core',
+    'Profile',
+    'Restaurant',
 ]
 
 MIDDLEWARE = [
@@ -69,6 +72,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'dishto.wsgi.application'
 
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    )
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -120,4 +129,5 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+AUTH_USER_MODEL = 'Profile.Profile'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
