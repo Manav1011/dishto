@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends
 
-from .request import FranchiseCreationRequest
+from Restaurant.response import OutletCreationResponse
+from core.schema import BaseResponse
+
+from .request import FranchiseCreationRequest, OutletCreationRequest
 from .service import RestaurantService
-from .dependencies import is_superadmin
+from core.dependencies import is_superadmin
+from .dependencies import is_franchise_admin
 # Create your views here.
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
 
@@ -20,4 +24,12 @@ async def create_franchise(data: FranchiseCreationRequest, service: RestaurantSe
     Create a new franchise.
     """
     # Placeholder logic for creating a franchise
-    return await service.create_franchise(body=data.model_dump())
+    return BaseResponse(data = await service.create_franchise(body=data.model_dump()))
+
+@router.post("/outlet", summary="Create Outlet", description="Create a new outlet for the restaurant service.", dependencies=[Depends(is_franchise_admin)])
+async def create_outlet(data: OutletCreationRequest, service: RestaurantService = Depends(RestaurantService), user=Depends(is_franchise_admin)) -> BaseResponse[OutletCreationResponse]:
+    """
+    Create a new outlet.
+    """
+    # Placeholder logic for creating an outlet
+    return BaseResponse(data = await service.create_outlet(body=data.model_dump(), user=user))
