@@ -81,8 +81,6 @@ class AuthService:
                 detail=f'Error retrieving user: {str(e)}'
             )
         
-        
-        
     async def update_password(self, body: dict, user):
         """
         Set a new password for the user.

@@ -6,4 +6,3 @@ class FranchiseCreationRequest(BaseModel):
 class OutletCreationRequest(BaseModel):
     name: constr(min_length=1, max_length=100) 
     franchise_slug: constr(min_length=1, max_length=100)
-    
