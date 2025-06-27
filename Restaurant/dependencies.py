@@ -26,3 +26,12 @@ async def is_franchise_admin(user = Depends(verify_bearer_token)):
     if user.role != "franchise_owner":
         raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
     return user
+
+async def is_outlet_admin(user = Depends(verify_bearer_token)):
+    """
+    Dependency to check if the user is an outlet admin.
+    Raises HTTPException if the user is not an outlet admin.
+    """
+    if user.role != "outlet_owner":
+        raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+    return user
