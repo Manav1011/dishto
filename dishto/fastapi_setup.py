@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from django.conf import settings
-from dishto.utils.lifespan import lifespan
+from core.utils.lifespan import lifespan
 from dishto.middleware import setup_middleware
-from dishto.utils.schema import BaseValidationResponse
+from core.utils.schema import BaseValidationResponse
 from dishto.urls import base_router
-
+from core.utils.limiters import auth_limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 def get_fastapi_application() -> FastAPI:
     """
@@ -31,6 +33,9 @@ def get_fastapi_application() -> FastAPI:
         },
         lifespan=lifespan,
     )
+
+    fastapi_app.state.limiter = auth_limiter
+    fastapi_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     setup_middleware(fastapi_app)
     

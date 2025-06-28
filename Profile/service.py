@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from Restaurant.models import Franchise, Outlet
 
 from dishto.GlobalUtils import generate_unique_hash
-from dishto.utils.asyncs import is_valid_async
+from core.utils.asyncs import is_valid_async
 from .request import (
     TokenRequest,
     TokenRefreshRequest
@@ -20,7 +20,7 @@ from .response import (
 )
 import traceback
 from core.models import User
-from dishto.utils.asyncs import get_related_object
+from core.utils.asyncs import get_related_object
 
 class AuthService:
     async def obtain_token(self,body: TokenRequest):

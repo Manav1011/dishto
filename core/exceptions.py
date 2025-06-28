@@ -1,6 +1,6 @@
 from fastapi import status
 from typing import Optional
-from dishto.utils import constants
+from core.utils import constants
 
 class CustomException(Exception):
     """

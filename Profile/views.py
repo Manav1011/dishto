@@ -21,7 +21,7 @@ from .response import (
     FranchiseAdminCreationResponse
 )
 
-from core.dependencies import verify_bearer_token, is_superadmin
+from core.dependencies import is_superadmin
 from Restaurant.dependencies import is_franchise_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -84,24 +84,28 @@ async def set_password(
 
 @router.post("/update-password")
 async def update_password(
+    request: Request,
     data: UpdatePasswordRequest,
-    service: AuthService = Depends(AuthService),
-    user=Depends(verify_bearer_token)
+    service: AuthService = Depends(AuthService),    
 ) -> BaseResponse[UpdatePasswordResponse]:
+    if not request.state.user:
+        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")
     data = data.model_dump()
-    return BaseResponse(data=await service.update_password(body=data, user=user))
+    return BaseResponse(data=await service.update_password(body=data, user=request.state.user))
 
 @router.post("/update-profile")
 async def update_profile(
+    request: Request,
     data: UpdateProfileRequest,
-    service: AuthService = Depends(AuthService),
-    user=Depends(verify_bearer_token)
+    service: AuthService = Depends(AuthService),    
 ) -> BaseResponse[UpdateProfileResponse]:
+    if not request.state.user:
+        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")
     data = data.model_dump()
-    return BaseResponse(data=await service.update_profile(body=data, user=user))
+    return BaseResponse(data=await service.update_profile(body=data, user=request.state.user))
 
-@router.post("/admin/franchise")
-async def create_franchise_admin(data: FranchiseAdminCreationRequest, service: AdminCreation = Depends(AdminCreation), user=Depends(is_superadmin)) -> BaseResponse[FranchiseAdminCreationResponse]:
+@router.post("/admin/franchise", dependencies=[Depends(is_superadmin)])
+async def create_franchise_admin(data: FranchiseAdminCreationRequest, service: AdminCreation = Depends(AdminCreation)) -> BaseResponse[FranchiseAdminCreationResponse]:
     """
     Create a new franchise admin (super super admin only).
     """

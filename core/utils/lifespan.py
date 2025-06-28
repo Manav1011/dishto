@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from cryptography.hazmat.primitives import serialization
 
 from django.conf import settings
-from dishto.utils.logger import logger
+from core.utils.logger import logger
 
 
 @asynccontextmanager

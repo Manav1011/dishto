@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Generic, TypeVar
-from dishto.utils import constants 
+from core.utils import constants 
 from pydantic.alias_generators import to_camel  # noqa
 from fastapi import status as st
 

@@ -1,6 +1,6 @@
 from fastapi.responses import JSONResponse
 from fastapi import status
-import dishto.utils.constants as constants
+import core.utils.constants as constants
 
 def root() -> JSONResponse:
     """

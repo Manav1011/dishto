@@ -24,7 +24,7 @@ from .response import (
 )
 from .models import Franchise, Outlet, MenuCategory, MenuItem
 from fastapi import HTTPException, status
-from dishto.utils.asyncs import get_related_object, get_queryset
+from core.utils.asyncs import get_related_object, get_queryset
 from django.core.files.base import ContentFile
 import uuid
 
@@ -305,19 +305,15 @@ class MenuService:
             
             # Handle image upload if provided
             image_url = None
-            if image_file:
-                # Read the file content
-                file_content = await image_file.read()
-                
+            if image_file:                                
                 # Generate filename using item slug
-                file_extension = image_file.filename.split('.')[-1] if image_file.filename and '.' in image_file.filename else 'jpg'
+                file_extension="png"
                 unique_filename = f"{item.slug}.{file_extension}"
                 
-                # Create Django ContentFile
-                django_file = ContentFile(file_content, name=unique_filename)
+                image_file.name = unique_filename  # Set the name for the ContentFile            
                 
                 # Save the file to the model
-                item.image.save(unique_filename, django_file, save=False)
+                item.image.save(unique_filename, image_file, save=False)
                 await item.asave()
                 image_url = item.image.url if item.image else None
             
