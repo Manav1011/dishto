@@ -5,11 +5,17 @@ import asyncio
 from google import genai
 from google.genai import types
 from django.core.files.base import ContentFile
-from core.utils.constants import MENU_ITEM_IMAGE_GENRATION_PROMPT
+from core.utils.constants import MENU_ITEM_IMAGE_GENRATION_PROMPT, IMAGE_GEN_MODEL_GEMINI, DESCRIPTION_ENHANCEMENT_MODEL_GEMINI, MENU_ITEM_DESCRIPTION_ENHANCEMENT_SYSTEM_PROMPT
 from anyio import to_thread  # Use anyio for FastAPI compatibility
 import asyncio
 
 GEMINI_IMAGE_SEMAPHORE = asyncio.Semaphore(9)
+
+GEMINI_DESCRIPTION_SEMAPHORE = asyncio.Semaphore(29)
+
+description_enhancement_client = genai.Client(
+    api_key=os.environ.get("GEMINI_API_KEY"),    
+)
 
 def _blocking_gemini_image(food_name: str, description:str, prompt: str, model: str, generate_content_config) -> ContentFile:
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -46,7 +52,7 @@ async def generate_menu_item_image(food_name: str, description: str, max_retries
     Runs the blocking Gemini call in a thread to avoid blocking the event loop.
     Retries on failure.
     """
-    model = "gemini-2.0-flash-preview-image-generation"
+    model = IMAGE_GEN_MODEL_GEMINI
     prompt = MENU_ITEM_IMAGE_GENRATION_PROMPT
     generate_content_config = types.GenerateContentConfig(
         temperature=2,
@@ -74,3 +80,44 @@ async def generate_menu_item_image(food_name: str, description: str, max_retries
             if attempt < max_retries:
                 await asyncio.sleep(delay)
     raise RuntimeError(f"Failed to generate image from Gemini after {max_retries} attempts. Last error: {last_exception}")
+
+def _blocking_gemini_enhance_description(client, model, contents, config):
+    response = client.models.generate_content(model=model, contents=contents, config=config)
+    return response.text
+
+async def enhance_menu_item_description_with_ai(item_name: str, description: str, max_retries: int = 3, delay: float = 2.0) -> str:
+    """
+    Enhances a menu item description using Gemini AI.
+    Returns a vivid, appetizing, and concise description for menu/app use.
+    Runs the blocking Gemini call in a thread to avoid blocking the event loop.
+    Retries on failure.
+    """
+    model = DESCRIPTION_ENHANCEMENT_MODEL_GEMINI    
+    prompt = f"Food Item: {item_name}, Food Description: {description}"
+
+    contents = [        
+        types.Content(role="user", parts=[types.Part.from_text(text=prompt)]),
+    ]
+    config = types.GenerateContentConfig(
+        system_instruction=MENU_ITEM_DESCRIPTION_ENHANCEMENT_SYSTEM_PROMPT,
+        temperature=1
+    )
+    
+    last_exception = None
+    async with GEMINI_DESCRIPTION_SEMAPHORE:
+        for attempt in range(1, max_retries + 1):
+            try:
+                response_text = await to_thread.run_sync(
+                    _blocking_gemini_enhance_description,
+                    description_enhancement_client,
+                    model,
+                    contents,
+                    config,
+                )
+                return response_text
+            except Exception as e:
+                last_exception = e
+                print(f"[Gemini] Description enhancement attempt {attempt} failed: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(delay)
+    raise RuntimeError(f"Failed to enhance description from Gemini after {max_retries} attempts. Last error: {last_exception}")

@@ -8,7 +8,12 @@ from dishto.GlobalUtils import generate_unique_hash
 from core.utils.asyncs import is_valid_async
 from .request import (
     TokenRequest,
-    TokenRefreshRequest
+    TokenRefreshRequest,
+    OutletAdminCreationRequest,
+    SetPasswordRequest,
+    UpdateProfileRequest,
+    FranchiseAdminCreationRequest,
+    UpdatePasswordRequest
 )
 from .response import (
     OutletAdminCreationResponse,
@@ -16,7 +21,8 @@ from .response import (
     TokenRefreshResponse,
     SetPasswordResponse,
     UpdateProfileResponse,
-    FranchiseAdminCreationResponse
+    FranchiseAdminCreationResponse,
+    UserInfoResponse
 )
 import traceback
 from core.models import User
@@ -34,7 +40,7 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=str(e)
-            )   
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -57,11 +63,11 @@ class AuthService:
                 detail=str(e)
             )
     
-    async def set_password(self, body: dict):
-        slug = body.get('slug')
-        set_password_code = body.get('set_password_code')
-        password = body.get('new_password')
-        
+    async def set_password(self, body: SetPasswordRequest):
+        slug = body.slug
+        set_password_code = body.set_password_code
+        password = body.new_password
+
         try:
             user = await User.objects.aget(slug=slug)
             if user.forgot_password_code != set_password_code:
@@ -81,15 +87,15 @@ class AuthService:
                 detail=f'Error retrieving user: {str(e)}'
             )
         
-    async def update_password(self, body: dict, user):
+    async def update_password(self, body: UpdatePasswordRequest, user):
         """
         Set a new password for the user.
         :param body: Dictionary containing the new password and other necessary fields.
         :param user: The user object for whom the password is being set.
         :return: TokenResponse with access and refresh tokens.
         """
-        password = body.get('new_password')
-        set_password_code = body.get('set_password_code')
+        password = body.new_password
+        set_password_code = body.set_password_code
         if user.forgot_password_code != set_password_code:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid password reset code.')
         user.set_password(password)
@@ -98,24 +104,24 @@ class AuthService:
         return SetPasswordResponse(email=user.email)
     
     
-    async def update_profile(self, body: dict, user):
+    async def update_profile(self, body: UpdateProfileRequest, user):
         """
         Update the user's profile information.
         :param body: Dictionary containing the updated profile information.
         :param user: The user object whose profile is being updated.
         :return: UpdateProfileResponse with the updated profile information.
         """
-        user.name = body.get('name') or user.name
-        user.email = body.get('email') or user.email
-        user.ph_no = body.get('ph_no') or user.ph_no
+        user.name = body.name or user.name
+        user.email = body.email or user.email
+        user.ph_no = body.ph_no or user.ph_no
         await user.asave()
         return UpdateProfileResponse(name=user.name, email=user.email, ph_no=user.ph_no)
     
     
 class AdminCreation:
-    async def create_franchise_admin(self, body: dict) -> FranchiseAdminCreationResponse:
-        email = body.get("email")
-        slug = body.get("slug")
+    async def create_franchise_admin(self, body: FranchiseAdminCreationRequest) -> FranchiseAdminCreationResponse:
+        email = body.email
+        slug = body.slug
         try:
             franchise_object = await Franchise.objects.aget(slug=slug)
             user_obj = await User.objects.acreate(
@@ -145,10 +151,10 @@ class AdminCreation:
                 detail=f"Failed to create franchise admin: {str(e)}"
             )
     
-    async def create_outlet_admin(self, body: dict, user) -> OutletAdminCreationResponse:
-        email = body.get("email")
-        franchise_slug = body.get("franchise_slug")
-        slug = body.get("slug")
+    async def create_outlet_admin(self, body: OutletAdminCreationRequest, user) -> OutletAdminCreationResponse:
+        email = body.email
+        franchise_slug = body.franchise_slug
+        slug = body.slug
         try:
             franchise_object = await Franchise.objects.aget(slug=franchise_slug)
             admin = await get_related_object(franchise_object, "admin")
@@ -191,3 +197,13 @@ class AdminCreation:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create outlet admin: {str(e)}"
             )
+            
+class UserInfoService:
+    async def get_user_info(self, user) -> UserInfoResponse:        
+        if user:
+            return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug)            
+        raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="You're not allowed to perform this action!!"
+            )
+            

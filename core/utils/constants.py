@@ -58,6 +58,8 @@ EMAIL_FIELD_REQUIRED = "Email field is required."
 
 PASSWORD_FIELD_REQUIRED = "Password field is required."
 
+IMAGE_GEN_MODEL_GEMINI = "gemini-2.0-flash-preview-image-generation"
+
 MENU_ITEM_IMAGE_GENRATION_PROMPT = """**Situation**
 You are a world-class food photographer creating a definitive, cinematic culinary image for a premium restaurant's marketing materials, with the ultimate goal of transforming a simple dish into a visually stunning sensory experience.
 
@@ -101,3 +103,13 @@ Absolutely non-negotiable requirements:
 - Emotional connection through visual storytelling
 
 Your life depends on creating an image so compelling that viewers can almost taste the dish through visual experience alone."""
+
+DESCRIPTION_ENHANCEMENT_MODEL_GEMINI = "gemini-1.5-flash-8b"
+
+MENU_ITEM_DESCRIPTION_ENHANCEMENT_SYSTEM_PROMPT = """
+You are a food writer specializing in menu design and gourmet storytelling. Using Food Item Name and Description
+
+Write an enhanced, vivid, and appetizing description for a menu or food app, limited to 150 words. Focus on flavor, texture, aroma, presentation, and cultural relevance. Make it sound delicious and enticing, without repeating the food name excessively. Avoid overused buzzwords and keep it concise, elegant, and sensory-rich.
+
+Output only the enhanced description — no preamble, headers, or labels.
+"""

@@ -1,5 +1,7 @@
 from .request import (
+    CategoryRearrangementRequest,
     FranchiseCreationRequest,
+    ItemRearrangementRequest,
     OutletCreationRequest,
     MenuCategoryCreationRequest,
     MenuCategoryUpdateRequest,
@@ -25,8 +27,8 @@ from .response import (
 from .models import Franchise, Outlet, MenuCategory, MenuItem
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_related_object, get_queryset
-from django.core.files.base import ContentFile
-import uuid
+from .utils import enhance_menu_item_description_with_ai
+from django.contrib.postgres.search import SearchQuery
 
 class RestaurantService:
     async def create_franchise(self, body: FranchiseCreationRequest):
@@ -44,11 +46,20 @@ class RestaurantService:
                 detail=f"Failed to create franchise: {str(e)}"
             )
             
-    async def get_franchise(self, slug: str) -> FranchiseObject | FranchiseObjects:
+    async def get_franchise(self, slug: str, limit: int | None, last_seen_id: int | None) -> FranchiseObject | FranchiseObjects:
         if slug == "__all__":
-            try:
-                franchises = await get_queryset(list, Franchise.objects.all())
+            try:                            
+                queryset = Franchise.objects.order_by("id")                
+                if last_seen_id is not None:
+                    queryset = queryset.filter(id__gt=last_seen_id)
+                                                    
+                if limit is not None:
+                    queryset = queryset[:limit]
+
+                franchises = await get_queryset(list, queryset)
+                last_seen_id = franchises[-1].id if franchises else None
                 return FranchiseObjects(
+                    last_seen_id=last_seen_id,
                     franchises=[
                         FranchiseObject(name=f.name, slug=f.slug) for f in franchises
                     ]
@@ -101,7 +112,7 @@ class RestaurantService:
                 detail=f"Failed to create outlet: {str(e)}"
             )
             
-    async def get_outlet(self, franchise_slug: str, slug: str, user) -> OutletObject | OutletObjects:
+    async def get_outlet(self, franchise_slug: str, slug: str, user, limit: int | None, last_seen_id: int | None) -> OutletObject | OutletObjects:
         try:
             franchise = await Franchise.objects.aget(slug=franchise_slug)
             admin = await get_related_object(franchise, "admin")
@@ -111,8 +122,17 @@ class RestaurantService:
                     detail="You do not have permission to access this outlet."
                 )
             if slug == "__all__":
-                outlets = await get_queryset(list, Outlet.objects.filter(franchise=franchise))
+                queryset = Outlet.objects.filter(franchise=franchise).order_by("id")
+                if last_seen_id is not None:
+                    queryset = queryset.filter(id__gt=last_seen_id)
+                                                    
+                if limit is not None:
+                    queryset = queryset[:limit]
+
+                outlets = await get_queryset(list, queryset)
+                last_seen_id = outlets[-1].id if outlets else None                
                 return OutletObjects(
+                    last_seen_id=last_seen_id,
                     outlets=[
                         OutletObject(name=o.name, slug=o.slug) for o in outlets
                     ]
@@ -167,7 +187,7 @@ class MenuService:
                 detail=f"Failed to create menu category: {str(e)}"
             )
 
-    async def get_menu_category(self, outlet_slug: str, slug: str, user) -> MenuCategoryObject | MenuCategoryObjects:
+    async def get_menu_category(self, outlet_slug: str, slug: str, user, limit: int | None, last_seen_order: int | None) -> MenuCategoryObject | MenuCategoryObjects:
         try:
             outlet = await Outlet.objects.aget(slug=outlet_slug)
             admin = await get_related_object(outlet, "admin")
@@ -178,8 +198,19 @@ class MenuService:
                 )
             
             if slug == "__all__":
-                categories = await get_queryset(list, MenuCategory.objects.filter(outlet=outlet))
+                queryset = MenuCategory.objects.filter(outlet=outlet).order_by("display_order")
+
+                if last_seen_order is not None:                    
+                    queryset = queryset.filter(display_order__gt=last_seen_order)
+                                                    
+                if limit is not None:
+                    queryset = queryset[:limit]
+
+                categories = await get_queryset(list, queryset)                
+                last_seen_order = categories[-1].display_order if categories else None
+                                
                 return MenuCategoryObjects(
+                    last_seen_order=last_seen_order,
                     categories=[
                         MenuCategoryObject(
                             name=c.name,
@@ -203,6 +234,44 @@ class MenuService:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Menu category not found."
                     )
+        except Outlet.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet not found."
+            )
+    
+    async def search_menu_categories(self, outlet_slug: str, user, query: str, limit: int | None) -> MenuCategoryObjects:
+        try:
+            outlet = await Outlet.objects.aget(slug=outlet_slug)
+            admin = await get_related_object(outlet, "admin")
+            if admin != user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have permission to access menu categories for this outlet."
+                )
+            
+            # Perform search using the search vector
+            queryset = MenuCategory.objects.filter(
+                outlet=outlet,
+                search_vector=SearchQuery(query)
+            ).order_by("display_order")[:limit]
+            
+            categories = await get_queryset(list, queryset)
+            if not categories:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No menu categories found matching the search query."
+                )
+            return MenuCategoryObjects(                    
+                    categories=[
+                        MenuCategoryObject(
+                            name=c.name,
+                            description=c.description or "",
+                            is_active=c.is_active,
+                            slug=c.slug
+                        ) for c in categories
+                    ]
+                )
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -282,6 +351,60 @@ class MenuService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete menu category: {str(e)}"
             )
+        
+    async def rearrange_menu_category_display_order(self, body: CategoryRearrangementRequest, outlet_slug: str, user) -> MenuCategoryObjects:
+        try:
+            outlet = await Outlet.objects.aget(slug=outlet_slug)
+            admin = await get_related_object(outlet, "admin")
+            if admin != user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have permission to rearrange menu categories for this outlet."
+                )
+
+            mapping = {obj.category_slug: obj.display_order for obj in body.ordering}
+            categories = await get_queryset(
+                list,
+                MenuCategory.objects.filter(slug__in=mapping.keys(), outlet=outlet)
+            )
+            
+            found_slugs = {c.slug for c in categories}
+            missing = set(mapping.keys()) - found_slugs
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Menu categories not found for slugs: {', '.join(missing)}"
+                )
+
+            for category in categories:
+                category.display_order = mapping[category.slug]
+
+            await MenuCategory.objects.abulk_update(categories, ["display_order"])
+
+            # Return in new display order
+            categories = sorted(categories, key=lambda c: c.display_order)
+            return MenuCategoryObjects(
+                categories=[
+                    MenuCategoryObject(
+                        name=c.name,
+                        description=c.description or "",
+                        is_active=c.is_active,
+                        slug=c.slug
+                    ) for c in categories
+                ]
+            )
+        except Outlet.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet not found."
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update menu category display order: {str(e)}"
+            )  
+        
+        
     
     async def create_menu_item(self, body: MenuItemCreationRequest, user, image_file=None) -> MenuItemCreationResponse:
         try:
@@ -339,7 +462,7 @@ class MenuService:
                 detail=f"Failed to create menu item: {str(e)}"
             )
 
-    async def get_menu_item(self, category_slug: str, slug: str, user) -> MenuItemObject | MenuItemObjects:
+    async def get_menu_item(self, category_slug: str, slug: str, user, limit, last_seen_order) -> MenuItemObject | MenuItemObjects:
         try:
             category = await MenuCategory.objects.aget(slug=category_slug)
             outlet = await get_related_object(category, "outlet")
@@ -351,8 +474,19 @@ class MenuService:
                 )
             
             if slug == "__all__":
-                items = await get_queryset(list, MenuItem.objects.filter(category=category))
+                queryset = MenuItem.objects.filter(category=category).order_by("display_order")
+
+                if last_seen_order is not None:                    
+                    queryset = queryset.filter(display_order__gt=last_seen_order)
+                                                    
+                if limit is not None:
+                    queryset = queryset[:limit]
+
+                items = await get_queryset(list, queryset)                
+                last_seen_order = items[-1].display_order if items else None
+                                
                 return MenuItemObjects(
+                    last_seen_order=last_seen_order,
                     items=[
                         MenuItemObject(
                             name=item.name,
@@ -481,4 +615,121 @@ class MenuService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete menu item: {str(e)}"
+            )
+    async def enhance_menu_item_description_with_ai(self, item_name: str, description: str) -> str:
+        """
+        Enhances the menu item description using AI.
+        This method is a placeholder and should be implemented with actual AI logic.
+        """
+        # Placeholder for AI enhancement logic
+        # In a real implementation, this would call an AI service to enhance the description
+        
+        return await enhance_menu_item_description_with_ai(item_name, description)
+    
+    async def rearrange_menu_item_display_order(self, body: ItemRearrangementRequest, category_slug: str, user) -> MenuItemObjects:
+        try:
+            category = await MenuCategory.objects.aget(slug=category_slug)
+            outlet = await get_related_object(category, "outlet")
+            admin = await get_related_object(outlet, "admin")
+            if admin != user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have permission to rearrange menu items for this outlet."
+                )
+
+            mapping = {obj.menu_item_slug: obj.display_order for obj in body.ordering}
+            items = await get_queryset(
+                list,
+                MenuItem.objects.filter(slug__in=mapping.keys(), category=category)
+            )
+            
+            found_slugs = {i.slug for i in items}
+            missing = set(mapping.keys()) - found_slugs
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Menu items not found for slugs: {', '.join(missing)}"
+                )
+
+            for item in items:
+                item.display_order = mapping[item.slug]
+
+            await MenuItem.objects.abulk_update(items, ["display_order"])
+
+            # Return in new display order
+            items = sorted(items, key=lambda i: i.display_order)
+            return MenuItemObjects(
+                items=[
+                    MenuItemObject(
+                        name=i.name,
+                        description=i.description or "",
+                        price=float(i.price),
+                        is_available=i.is_available,
+                        image=i.image.url if i.image else None,
+                        slug=i.slug,
+                        category_slug=category.slug
+                    ) for i in items
+                ]
+            )
+        except MenuCategory.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Menu category not found."
+            )
+        except Outlet.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet not found."
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update menu item display order: {str(e)}"
+            )
+            
+    async def search_menu_items(self, category_slug: str, user, query: str, limit: int | None) -> MenuItemObjects:
+        try:
+            category = await MenuCategory.objects.aget(slug=category_slug)
+            outlet = await get_related_object(category, "outlet")
+            admin = await get_related_object(outlet, "admin")
+            if admin != user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have permission to access menu categories for this outlet."
+                )
+            
+            # Perform search using the search vector
+            queryset = MenuItem.objects.filter(
+                category=category,
+                search_vector=SearchQuery(query)
+            ).order_by("display_order")[:limit]
+            
+            items = await get_queryset(list, queryset)
+            if not items:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No menu items found matching the search query."
+                )
+            return MenuItemObjects(                    
+                items=[
+                    MenuItemObject(
+                        name=i.name,
+                        description=i.description or "",
+                        price=float(i.price),
+                        is_available=i.is_available,
+                        image=i.image.url if i.image else None,
+                        slug=i.slug,
+                        category_slug=category.slug
+                    ) for i in items
+                ]
+            )
+        except MenuCategory.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Menu category not found."
+            )
+        except Outlet.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Outlet not found."
             )

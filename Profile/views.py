@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response
 
 from core.schema import BaseResponse
-from .service import AuthService, AdminCreation
+from .service import AuthService, AdminCreation, UserInfoService
 from .request import (
     FranchiseAdminCreationRequest,
     OutletAdminCreationRequest,
@@ -18,7 +18,8 @@ from .response import (
     SetPasswordResponse,
     UpdatePasswordResponse,
     UpdateProfileResponse,
-    FranchiseAdminCreationResponse
+    FranchiseAdminCreationResponse,
+    UserInfoResponse
 )
 
 from core.dependencies import is_superadmin
@@ -27,7 +28,7 @@ from Restaurant.dependencies import is_franchise_admin
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/token")
+@router.post("/login")
 async def obtain_token(data: TokenRequest, service: AuthService = Depends(AuthService)) -> Response:
     data = data.model_dump()
     tokens = await service.obtain_token(body=data)
@@ -37,17 +38,37 @@ async def obtain_token(data: TokenRequest, service: AuthService = Depends(AuthSe
         value=tokens.access,
         httponly=True,
         secure=True,
-        samesite="lax"
+        samesite="lax",
     )
     response.set_cookie(
         key="refresh",
         value=tokens.refresh,
         httponly=True,
         secure=True,
-        samesite="lax"
+        samesite="lax"        
     )
     return response
 
+@router.post("/logout")
+async def logout() -> Response:
+    response = Response(content='{"message": "Logged out successfully"}', media_type="application/json")
+    # Remove both cookies
+    response.delete_cookie(
+        key="access",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/"
+    )
+    response.delete_cookie(
+        key="refresh",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/"
+    )
+
+    return response
         
 @router.post("/refresh")
 async def refresh_token(request: Request, service: AuthService = Depends(AuthService)) -> BaseResponse[TokenRefreshResponse]:
@@ -73,12 +94,19 @@ async def refresh_token(request: Request, service: AuthService = Depends(AuthSer
     )
     return response
 
+@router.get("/user-info")
+async def get_user_info(
+    request: Request,
+    service: UserInfoService = Depends(UserInfoService)
+) -> BaseResponse[UserInfoResponse]:    
+        user = request.state.user
+        return BaseResponse(data = await service.get_user_info(user))
+
 @router.post("/set-password")
 async def set_password(
     data: SetPasswordRequest,
     service: AuthService = Depends(AuthService)
-) -> BaseResponse[SetPasswordResponse]:
-    data = data.model_dump()
+) -> BaseResponse[SetPasswordResponse]:    
     return BaseResponse(data=await service.set_password(body=data))
 
 
@@ -89,8 +117,7 @@ async def update_password(
     service: AuthService = Depends(AuthService),    
 ) -> BaseResponse[UpdatePasswordResponse]:
     if not request.state.user:
-        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")
-    data = data.model_dump()
+        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")    
     return BaseResponse(data=await service.update_password(body=data, user=request.state.user))
 
 @router.post("/update-profile")
@@ -100,8 +127,7 @@ async def update_profile(
     service: AuthService = Depends(AuthService),    
 ) -> BaseResponse[UpdateProfileResponse]:
     if not request.state.user:
-        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")
-    data = data.model_dump()
+        return BaseResponse(status_code=401, message="Authentication credentials were not provided.")    
     return BaseResponse(data=await service.update_profile(body=data, user=request.state.user))
 
 @router.post("/admin/franchise", dependencies=[Depends(is_superadmin)])
@@ -109,7 +135,7 @@ async def create_franchise_admin(data: FranchiseAdminCreationRequest, service: A
     """
     Create a new franchise admin (super super admin only).
     """
-    return BaseResponse(data=await service.create_franchise_admin(body=data.model_dump()))
+    return BaseResponse(data=await service.create_franchise_admin(body=data))
 
 @router.post("/admin/outlet")
 async def create_outlet_admin(
@@ -120,4 +146,4 @@ async def create_outlet_admin(
     """
     Create a new outlet admin (franchise admin only).
     """
-    return BaseResponse(data=await service.create_outlet_admin(body=data.model_dump(), user=user))
+    return BaseResponse(data=await service.create_outlet_admin(body=data, user=user))

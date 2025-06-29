@@ -31,3 +31,17 @@ class MenuItemUpdateRequest(BaseModel):
     description: Optional[str] = None
     price: Optional[Annotated[float, Field(gt=0, description="Price must be greater than 0")]] = None
     is_available: Optional[bool] = None
+    
+class CategoryDisplayOrderObject(BaseModel):
+    category_slug: str
+    display_order: int
+    
+class CategoryRearrangementRequest(BaseModel):    
+    ordering: list[CategoryDisplayOrderObject]
+    
+class ItemDisplayOrderObject(BaseModel):
+    menu_item_slug: str
+    display_order: int
+    
+class ItemRearrangementRequest(BaseModel):    
+    ordering: list[ItemDisplayOrderObject]

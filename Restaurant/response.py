@@ -7,6 +7,7 @@ class FranchiseObject(BaseModel):
 
 class FranchiseObjects(BaseModel):
     franchises: list[FranchiseObject]
+    last_seen_id: Optional[int] = None
     
 class FranchiseCreationResponse(BaseModel):
     name: str
@@ -21,6 +22,7 @@ class OutletObject(BaseModel):
     slug: str
     
 class OutletObjects(BaseModel):
+    last_seen_id: Optional[int] = None
     outlets: list[OutletObject]
 
 class MenuCategoryCreationResponse(BaseModel):
@@ -36,6 +38,7 @@ class MenuCategoryObject(BaseModel):
     slug: str
 
 class MenuCategoryObjects(BaseModel):
+    last_seen_order: Optional[int] = None
     categories: list[MenuCategoryObject]
 
 class MenuCategoryUpdateResponse(BaseModel):
@@ -63,6 +66,7 @@ class MenuItemObject(BaseModel):
     category_slug: str
 
 class MenuItemObjects(BaseModel):
+    last_seen_order: Optional[int] = None
     items: list[MenuItemObject]
 
 class MenuItemUpdateResponse(BaseModel):

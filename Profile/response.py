@@ -33,3 +33,10 @@ class OutletAdminCreationResponse(BaseModel):
     email: str
     role: str = "outlet_admin"
     message: str = "Outlet admin created successfully."
+    
+class UserInfoResponse(BaseModel):
+    email: str | None = None
+    name: str | None = None
+    ph_no: str | None = None
+    role: str | None = None
+    slug: str | None = None

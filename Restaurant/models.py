@@ -1,5 +1,10 @@
 from django.db import models
 from dishto.GlobalUtils import generate_unique_hash
+from django.db.models.signals import post_save
+from django.contrib.postgres.search import SearchVectorField, SearchVector
+from django.dispatch import receiver
+from django.contrib.postgres.indexes import GinIndex
+
 
 # Create your models here.
 
@@ -35,8 +40,11 @@ class MenuCategory(models.Model):
     outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE)
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
     
+    search_vector = SearchVectorField(blank=True, null=True)
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_hash()
@@ -44,6 +52,17 @@ class MenuCategory(models.Model):
     
     def __str__(self):
         return self.name
+    
+    class Meta:
+        indexes = [
+            GinIndex(fields=["search_vector"])  # ✅ GIN index for fast search
+        ]
+
+@receiver(post_save, sender=MenuCategory)
+def update_menu_category_vector(sender, instance, **kwargs):
+    MenuCategory.objects.filter(pk=instance.pk).update(
+        search_vector=SearchVector(models.F("name"), models.F("description"))
+    )
 
 class MenuItem(models.Model):
     name = models.CharField(max_length=100)
@@ -52,7 +71,10 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_available = models.BooleanField(default=True)
     image = models.ImageField(upload_to='menu_items/', null=True, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
+    
+    search_vector = SearchVectorField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -61,6 +83,17 @@ class MenuItem(models.Model):
     
     def __str__(self):
         return self.name
+    
+    class Meta:
+        indexes = [
+            GinIndex(fields=["search_vector"])  # ✅ GIN index for fast search
+        ]
+        
+@receiver(post_save, sender=MenuItem)
+def update_menu_item_vector(sender, instance, **kwargs):
+    MenuItem.objects.filter(pk=instance.pk).update(
+        search_vector=SearchVector(models.F("name"), models.F("description"))
+    )
 
 class Order(models.Model):
     ORDER_STATUS = (
