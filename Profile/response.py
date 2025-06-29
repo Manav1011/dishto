@@ -40,3 +40,4 @@ class UserInfoResponse(BaseModel):
     ph_no: str | None = None
     role: str | None = None
     slug: str | None = None
+    extras: dict | None = None

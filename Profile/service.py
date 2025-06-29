@@ -201,7 +201,17 @@ class AdminCreation:
 class UserInfoService:
     async def get_user_info(self, user) -> UserInfoResponse:        
         if user:
-            return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug)            
+            if user.is_superuser:
+                return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug, extras={"superadmin": True})
+            elif user.role == "franchise_owner":
+                franchise = await Franchise.objects.aget(admin=user)
+                extras = {"franchise":{"name": franchise.name, "slug": franchise.slug}}
+                return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug, extras=extras)
+            elif user.role == "outlet_owner":
+                outlet = await Outlet.objects.aget(admin=user)
+                extras = {"outlet":{"name": outlet.name, "slug": outlet.slug}}
+                return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug, extras=extras)
+            return UserInfoResponse(email=user.email, name=user.name, ph_no=user.ph_no, role=user.role, slug=user.slug)
         raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="You're not allowed to perform this action!!"
