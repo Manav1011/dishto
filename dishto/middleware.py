@@ -1,7 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.backends import TokenBackend
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, TokenBackendError
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, TokenBackendError, TokenBackendExpiredToken
 from django.conf import settings
 from fastapi import HTTPException, Request
 from Restaurant.models import Franchise
@@ -18,14 +18,24 @@ class AuthMiddleware:
             algorithm='HS256',
             signing_key=settings.SECRET_KEY
         )
+        self.public_paths = {
+            '/docs', '/redoc', '/openapi.json'
+        }
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive=receive)        
+        request = Request(scope, receive=receive)
+        scope.setdefault("state", {})
         scope["state"]["user"] = None
+        
+        # Skip auth for public paths
+        path = request.url.path
+        if path in self.public_paths or path.startswith('/static/'):
+            await self.app(scope, receive, send)
+            return
 
         token = request.cookies.get("access")
         if token:
@@ -35,10 +45,26 @@ class AuthMiddleware:
                 if user_id:
                     user = await User.objects.aget(id=user_id)
                     scope["state"]["user"] = user
+            except (TokenBackendExpiredToken):
+                # For expired tokens, just continue without user
+                pass
             except (TokenError, InvalidToken, TokenBackendError):
-                raise HTTPException(status_code=401, detail="Invalid token")
+                # For invalid tokens, remove the cookie
+                response = JSONResponse(
+                    {"detail": "Invalid token"}, 
+                    status_code=401,
+                    headers={"Set-Cookie": "access=; Path=/; Max-Age=0"}
+                )
+                await response(scope, receive, send)
+                return
             except User.DoesNotExist:
-                raise HTTPException(status_code=401, detail="User not found")
+                response = JSONResponse(
+                    {"detail": "User not found"}, 
+                    status_code=401,
+                    headers={"Set-Cookie": "access=; Path=/; Max-Age=0"}
+                )
+                await response(scope, receive, send)
+                return
 
         await self.app(scope, receive, send)
 

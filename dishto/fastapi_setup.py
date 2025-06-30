@@ -3,7 +3,7 @@ from django.conf import settings
 from core.utils.lifespan import lifespan
 from dishto.middleware import setup_middleware
 from core.utils.schema import BaseValidationResponse
-from dishto.urls import base_router
+from dishto.urls import base_router_protected, base_router_open
 from core.utils.limiters import limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -39,5 +39,6 @@ def get_fastapi_application() -> FastAPI:
 
     setup_middleware(fastapi_app)
     
-    fastapi_app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
+    fastapi_app.include_router(base_router_open, responses={422: {"model": BaseValidationResponse}})
+    fastapi_app.include_router(base_router_protected, responses={422: {"model": BaseValidationResponse}})
     return fastapi_app

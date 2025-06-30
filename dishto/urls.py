@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path
 from fastapi import APIRouter
@@ -27,21 +28,22 @@ from django.conf.urls.static import static
 
 # django urls
 
-urlpatterns = [
-    path('admin/', admin.site.urls)
-]
+urlpatterns = [path("admin/", admin.site.urls)]
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-base_router = APIRouter()
-
-base_router.add_api_route("/healthcheck", healthcheck, methods=["GET"], name="healthcheck")
-
+base_router_open = APIRouter(prefix="/open")
 # end user urls
-base_router.include_router(end_user_router)
+base_router_open.include_router(end_user_router)
+
+# Protected routes
+base_router_protected = APIRouter(prefix="/protected")
+base_router_protected.add_api_route(
+    "/healthcheck", healthcheck, methods=["GET"], name="healthcheck"
+)
 # restaurant urls
-base_router.include_router(restaurant_router)
+base_router_protected.include_router(restaurant_router)
 # profile urls
-base_router.include_router(profile_router)
+base_router_protected.include_router(profile_router)

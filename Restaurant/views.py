@@ -51,13 +51,11 @@ from .utils import generate_menu_item_image
 from core.utils.limiters import limiter
 from slowapi.util import get_remote_address
 
-
 # User Side Router - No Authentication Required
-end_user_router = APIRouter(prefix="", tags=["End User"])
-
+end_user_router = APIRouter(tags=["End User"])
 
 @end_user_router.get(
-    "/",
+    path="/",
     summary="Get All Outlets",
     description="""Retrieve all outlets for the franchise.""",
 )
@@ -336,13 +334,11 @@ async def create_menu_item(
     service: MenuService = Depends(MenuService),
     outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemCreationResponse]:
-    # Validate image file
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image"
         )
 
-    # Check file size (limit to 5MB)
     if image.size and image.size > 5 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -352,7 +348,6 @@ async def create_menu_item(
     file_content = await image.read()
 
     django_file = ContentFile(file_content)
-    # Create request object from form data
     request_data = MenuItemCreationRequest(
         name=name,
         category_slug=category_slug,
@@ -471,29 +466,25 @@ async def update_menu_item(
     service: MenuService = Depends(MenuService),
     outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemUpdateResponse]:
-    # Validate image file if provided - skip if empty file or no filename
     image_file = None
     if image and image.filename and image.size > 0:
-        # Check if it's actually an image
         if not image.content_type or not image.content_type.startswith("image/"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image"
             )
 
-        # Check file size (limit to 5MB)
         if image.size and image.size > 5 * 1024 * 1024:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Image file too large. Maximum size is 5MB.",
             )
 
-        # Convert UploadFile to Django ContentFile
         image_content = await image.read()
         image_file = ContentFile(
             image_content,
             name=f"{category_slug}_{slug}_{uuid.uuid4().hex}.{image.filename.split('.')[-1]}",
         )
-    # Create request object from form data
+        
     request_data = MenuItemUpdateRequest(
         name=name, description=description, price=price, is_available=is_available
     )

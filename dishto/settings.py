@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-k6cgc_)$xqkok-!9^8b_mg!vs6=s2f5s((#t9x7ryti4rzl1__'
-APP_NAME = "Django FastAPI Integration"
+APP_NAME = "Dishto"
 APP_VERSION = "1.0.0"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
