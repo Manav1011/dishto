@@ -11,6 +11,7 @@ from django.contrib.postgres.indexes import GinIndex
 class Franchise(models.Model):
     name = models.CharField(max_length=255)
     admin = models.ForeignKey('Profile.Profile', on_delete=models.SET_NULL,null=True,blank=True)
+    subdomain = models.CharField(max_length=100, unique=True, null=True, blank=True)
     slug = models.SlugField(unique=True, null=True, blank=True)
     
     def save(self, *args, **kwargs):

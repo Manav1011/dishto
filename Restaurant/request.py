@@ -6,12 +6,10 @@ class FranchiseCreationRequest(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=100)]
 
 class OutletCreationRequest(BaseModel):
-    name: Annotated[str, Field(min_length=1, max_length=100)]
-    franchise_slug: Annotated[str, Field(min_length=1, max_length=100)]
+    name: Annotated[str, Field(min_length=1, max_length=100)]    
 
 class MenuCategoryCreationRequest(BaseModel):
-    name: Annotated[str, Field(min_length=1, max_length=100)]
-    outlet: Annotated[str, Field(min_length=1, max_length=100)]
+    name: Annotated[str, Field(min_length=1, max_length=100)]    
     description: str
 
 class MenuCategoryUpdateRequest(BaseModel):

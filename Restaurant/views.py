@@ -8,6 +8,7 @@ from fastapi import (
     status,
     Request,
     Query,
+    Path,
 )
 from typing import Optional
 import uuid
@@ -28,6 +29,7 @@ from .request import (
 from .response import (
     FranchiseObject,
     FranchiseObjects,
+    MenuItemObjectsUser,
     OutletObject,
     OutletObjects,
     MenuCategoryCreationResponse,
@@ -38,17 +40,55 @@ from .response import (
     MenuItemObject,
     MenuItemObjects,
     MenuItemUpdateResponse,
+    OutletObjectsUser,
 )
-from .service import RestaurantService, MenuService
+from .service import RestaurantService, MenuService, UserRestaurantService
 from .models import MenuCategory, MenuItem
-from core.utils.asyncs import get_related_object
 from django.core.files.base import ContentFile
 from core.dependencies import is_superadmin
 from .dependencies import is_franchise_admin, is_outlet_admin
 from .utils import generate_menu_item_image
-from core.utils.limiters import auth_limiter
+from core.utils.limiters import limiter
+from slowapi.util import get_remote_address
 
-# Create your views here.
+
+# User Side Router - No Authentication Required
+end_user_router = APIRouter(prefix="", tags=["End User"])
+
+
+@end_user_router.get(
+    "/",
+    summary="Get All Outlets",
+    description="""Retrieve all outlets for the franchise.""",
+)
+@limiter.limit("10/minute")
+async def get_outlets_for_user(
+    request: Request, service: UserRestaurantService = Depends(UserRestaurantService)
+) -> BaseResponse[OutletObjectsUser]:
+    return BaseResponse(
+        data=await service.get_user_outlets(franchise=request.state.franchise)
+    )
+
+
+@end_user_router.get(
+    "/menu/{outlet_slug}",
+    summary="Get Menu for Outlet",
+    description="""Retrieve the menu for a specific outlet by slug.""",
+)
+@limiter.limit("10/minute", key_func=get_remote_address)
+async def get_menu_for_outlet(
+    request: Request,
+    outlet_slug: str = Path(..., description="Slug of the outlet"),
+    service: UserRestaurantService = Depends(UserRestaurantService),
+) -> BaseResponse[MenuItemObjectsUser]:
+    return BaseResponse(
+        data=await service.get_menu_for_outlet(
+            franchise=request.state.franchise, outlet_slug=outlet_slug
+        )
+    )
+
+
+# Admin router
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
 
 
@@ -79,6 +119,7 @@ async def create_franchise(
     dependencies=[Depends(is_superadmin)],
 )
 async def get_franchise(
+    request: Request,
     slug: str = Query(..., description="Slug of the franchise "),
     service: RestaurantService = Depends(RestaurantService),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
@@ -105,9 +146,11 @@ async def get_franchise(
 async def create_outlet(
     data: OutletCreationRequest,
     service: RestaurantService = Depends(RestaurantService),
-    user=Depends(is_franchise_admin),
+    franchise=Depends(is_franchise_admin),
 ) -> BaseResponse[OutletCreationResponse]:
-    return BaseResponse(data=await service.create_outlet(body=data, user=user))
+    return BaseResponse(
+        data=await service.create_outlet(body=data, franchise=franchise)
+    )
 
 
 @router.get(
@@ -123,10 +166,9 @@ async def create_outlet(
     """,
 )
 async def get_outlet(
-    franchise_slug: str = Query(..., description="Slug of the franchise to search outlet in"),
     slug: str = Query(..., description="Slug of the outlet "),
     service: RestaurantService = Depends(RestaurantService),
-    user=Depends(is_franchise_admin),
+    franchise=Depends(is_franchise_admin),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
     last_seen_id: Optional[int] = Query(
         None, description="The last seen item ID for pagination"
@@ -134,9 +176,8 @@ async def get_outlet(
 ) -> BaseResponse[OutletObject | OutletObjects]:
     return BaseResponse(
         data=await service.get_outlet(
-            franchise_slug=franchise_slug,
             slug=slug,
-            user=user,
+            franchise=franchise,
             limit=limit,
             last_seen_id=last_seen_id,
         )
@@ -144,7 +185,7 @@ async def get_outlet(
 
 
 @router.post(
-    "/categories",
+    "/{outlet_slug}/categories",
     summary="Create Menu Category",
     description="""
     Create a new menu category for an outlet.
@@ -155,13 +196,15 @@ async def get_outlet(
 async def create_menu_category(
     data: MenuCategoryCreationRequest,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryCreationResponse]:
-    return BaseResponse(data=await service.create_menu_category(body=data, user=user))
+    return BaseResponse(
+        data=await service.create_menu_category(body=data, outlet=outlet)
+    )
 
 
 @router.get(
-    "/categories",
+    "/{outlet_slug}/categories",
     summary="Get Menu Category",
     description="""
     Retrieve a menu category or all categories for an outlet.
@@ -172,10 +215,9 @@ async def create_menu_category(
     Requires the user to be the admin of the outlet.
     """,
 )
-async def get_menu_category(    
+async def get_menu_category(
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
-    outlet_slug: str = Query(..., description="Slug of the outlet to search categories in"),
+    outlet=Depends(is_outlet_admin),
     slug: str = Query(..., description="Slug of the category to search categories in"),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
     last_seen_order: Optional[int] = Query(
@@ -184,40 +226,39 @@ async def get_menu_category(
 ) -> BaseResponse[MenuCategoryObject | MenuCategoryObjects]:
     return BaseResponse(
         data=await service.get_menu_category(
-            outlet_slug=outlet_slug,
             slug=slug,
-            user=user,
+            outlet=outlet,
             limit=limit,
             last_seen_order=last_seen_order,
         )
     )
 
+
 @router.get(
-    "/categories/search",
+    "/{outlet_slug}/categories/search",
     summary="Search Menu Category",
     description="""
     Search for a menu category by slug."
     - ?query=search_term: Search term to filter categories by name or description.
-    """
+    """,
 )
-async def search_menu_categories(        
+async def search_menu_categories(
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
-    outlet_slug: str = Query(..., description="Slug of the outlet to search categories in"),
-    query: str = Query(None, description="Search term to filter categories by name or description"),
-    limit: Optional[int] = Query(10, description="Maximum number of items to return")
-) -> BaseResponse[MenuCategoryObjects]:    
+    outlet=Depends(is_outlet_admin),
+    query: str = Query(
+        None, description="Search term to filter categories by name or description"
+    ),
+    limit: Optional[int] = Query(10, description="Maximum number of items to return"),
+) -> BaseResponse[MenuCategoryObjects]:
     return BaseResponse(
         data=await service.search_menu_categories(
-            outlet_slug=outlet_slug,            
-            user=user,
-            query=query,
-            limit=limit            
+            outlet=outlet, query=query, limit=limit
         )
     )
 
+
 @router.put(
-    "/categories/{outlet_slug}/{slug}",
+    "/{outlet_slug}/categories/{slug}",
     summary="Update Menu Category",
     description="""
     Update an existing menu category for an outlet.
@@ -226,21 +267,18 @@ async def search_menu_categories(
     """,
 )
 async def update_menu_category(
-    outlet_slug: str,
     slug: str,
     data: MenuCategoryUpdateRequest,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryUpdateResponse]:
     return BaseResponse(
-        data=await service.update_menu_category(
-            outlet_slug=outlet_slug, slug=slug, body=data, user=user
-        )
+        data=await service.update_menu_category(slug=slug, body=data, outlet=outlet)
     )
 
 
 @router.delete(
-    "/categories/{outlet_slug}/{slug}",
+    "/{outlet_slug}/categories/{slug}",
     summary="Delete Menu Category",
     description="""
     Delete a menu category for an outlet.
@@ -249,39 +287,35 @@ async def update_menu_category(
     """,
 )
 async def delete_menu_category(
-    outlet_slug: str,
     slug: str,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[dict]:
     return BaseResponse(
-        data=await service.delete_menu_category(
-            outlet_slug=outlet_slug, slug=slug, user=user
-        )
+        data=await service.delete_menu_category(slug=slug, outlet=outlet)
     )
 
 
 @router.post(
-    "/categories/{outlet_slug}/rearrange_display_order",
+    "/{outlet_slug}/categories/rearrange_display_order",
     summary="Rearrange Menu Category Display Order",
     description="""
     Rearrange the display order of menu categories for an outlet.""",
 )
 async def rearrange_menu_category_display_order(
     data: CategoryRearrangementRequest,
-    outlet_slug: str,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryObjects]:
     return BaseResponse(
         data=await service.rearrange_menu_category_display_order(
-            body=data, outlet_slug=outlet_slug, user=user
+            body=data, outlet=outlet
         )
     )
 
 
 @router.post(
-    "/items",
+    "/{outlet_slug}/items",
     summary="Create Menu Item",
     description="""
     Create a new menu item with image upload.
@@ -300,7 +334,7 @@ async def create_menu_item(
     is_available: bool = Form(True, description="Whether the item is available"),
     image: UploadFile = File(..., description="Image file for the menu item"),
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemCreationResponse]:
     # Validate image file
     if not image.content_type or not image.content_type.startswith("image/"):
@@ -327,14 +361,12 @@ async def create_menu_item(
         is_available=is_available,
     )
     return BaseResponse(
-        data=await service.create_menu_item(
-            body=request_data, user=user, image_file=django_file
-        )
+        data=await service.create_menu_item(body=request_data, image_file=django_file)
     )
 
 
 @router.post(
-    "/items/no-image",
+    "/{outlet_slug}/items/no-image",
     summary="Create Menu Item (No Image)",
     description="""
     Create a new menu item without image upload.
@@ -347,20 +379,18 @@ async def create_menu_item(
 async def create_menu_item_no_image(
     data: MenuItemCreationRequest,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemCreationResponse]:
     django_image = await generate_menu_item_image(
         food_name=data.name, description=data.description
     )
     return BaseResponse(
-        data=await service.create_menu_item(
-            body=data, user=user, image_file=django_image
-        )
+        data=await service.create_menu_item(body=data, image_file=django_image)
     )
 
 
 @router.get(
-    "/items/enhance_description_with_ai",
+    "/{outlet_slug}/items/enhance_description_with_ai",
     summary="Enhance Menu Item Description with AI",
     description="""
     Enhance the description of a menu item using AI.
@@ -372,7 +402,7 @@ async def enhance_menu_item_description_with_ai(
     item_name: str = Query(..., description="Name of the menu item"),
     description: str = Query(..., description="Description of the menu item"),
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[str]:
     enhanced_description = await service.enhance_menu_item_description_with_ai(
         item_name=item_name, description=description
@@ -381,7 +411,7 @@ async def enhance_menu_item_description_with_ai(
 
 
 @router.get(
-    "/items",
+    "/{outlet_slug}/items",
     summary="Get Menu Item",
     description="""
     Retrieve menu items by category slug and item slug.
@@ -396,7 +426,7 @@ async def get_menu_item(
     category_slug: str = Query(..., description="Slug of the menu category"),
     slug: str = Query(..., description="Slug of the menu item"),
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
     last_seen_order: Optional[int] = Query(
         None, description="The last seen item ID for pagination"
@@ -406,7 +436,7 @@ async def get_menu_item(
         data=await service.get_menu_item(
             category_slug=category_slug,
             slug=slug,
-            user=user,
+            outlet=outlet,
             limit=limit,
             last_seen_order=last_seen_order,
         )
@@ -414,7 +444,7 @@ async def get_menu_item(
 
 
 @router.put(
-    "/items/{category_slug}/{slug}",
+    "/{outlet_slug}/items/{category_slug}/{slug}",
     summary="Update Menu Item",
     description="""
     Update an existing menu item with optional image upload.
@@ -439,7 +469,7 @@ async def update_menu_item(
         description="New image file for the menu item (upload empty file to skip image update)",
     ),
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemUpdateResponse]:
     # Validate image file if provided - skip if empty file or no filename
     image_file = None
@@ -472,14 +502,14 @@ async def update_menu_item(
             category_slug=category_slug,
             slug=slug,
             body=request_data,
-            user=user,
+            outlet=outlet,
             image_file=image_file,
         )
     )
 
 
 @router.patch(
-    "/items/{category_slug}/{slug}",
+    "/{outlet_slug}/items/{category_slug}/{slug}",
     summary="Update Menu Item (JSON)",
     description="""
     Update an existing menu item without image upload.
@@ -494,21 +524,21 @@ async def update_menu_item_json(
     slug: str,
     data: MenuItemUpdateRequest,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemUpdateResponse]:
     return BaseResponse(
         data=await service.update_menu_item(
             category_slug=category_slug,
             slug=slug,
             body=data,
-            user=user,
+            outlet=outlet,
             image_file=None,
         )
     )
 
 
 @router.post(
-    "/items/upload-image/{category_slug}/{slug}",
+    "/{outlet_slug}/items/upload-image/{category_slug}/{slug}",
     summary="Upload Menu Item Image",
     description="""
     Upload an image for an existing menu item.
@@ -522,7 +552,7 @@ async def upload_menu_item_image(
     category_slug: str,
     slug: str,
     file: UploadFile = File(..., description="Image file to upload"),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[dict]:
     # Validate image file
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -539,13 +569,6 @@ async def upload_menu_item_image(
 
     try:
         category = await MenuCategory.objects.aget(slug=category_slug)
-        outlet = await get_related_object(category, "outlet")
-        admin = await get_related_object(outlet, "admin")
-        if admin != user:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to upload images for this outlet.",
-            )
 
         item = await MenuItem.objects.aget(slug=slug, category=category)
 
@@ -584,7 +607,7 @@ async def upload_menu_item_image(
 
 
 @router.post(
-    "/items/{category_slug}/rearrange_display_order",
+    "/{outlet_slug}/items/{category_slug}/rearrange_display_order",
     summary="Rearrange Menu Category Display Order",
     description="""
     Rearrange the display order of menu categories for an outlet.""",
@@ -593,34 +616,36 @@ async def rearrange_menu_item_display_order(
     data: ItemRearrangementRequest,
     category_slug: str,
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
+    outlet=Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemObjects]:
     return BaseResponse(
         data=await service.rearrange_menu_item_display_order(
-            body=data, category_slug=category_slug, user=user
+            body=data, category_slug=category_slug
         )
     )
 
+
 @router.get(
-    "/items/search",
+    "/{outlet_slug}/items/search",
     summary="Search Menu Item",
     description="""
     Search for a menu category by slug."
     - ?query=search_term: Search term to filter categories by name or description.
-    """
+    """,
 )
-async def search_menu_items(        
+async def search_menu_items(
     service: MenuService = Depends(MenuService),
-    user=Depends(is_outlet_admin),
-    category_slug: str = Query(..., description="Slug of the category to search menu items in"),
-    query: str = Query(None, description="Search term to filter items by name or description"),
-    limit: Optional[int] = Query(10, description="Maximum number of items to return")
-) -> BaseResponse[MenuItemObjects]:    
+    outlet=Depends(is_outlet_admin),
+    category_slug: str = Query(
+        ..., description="Slug of the category to search menu items in"
+    ),
+    query: str = Query(
+        None, description="Search term to filter items by name or description"
+    ),
+    limit: Optional[int] = Query(10, description="Maximum number of items to return"),
+) -> BaseResponse[MenuItemObjects]:
     return BaseResponse(
         data=await service.search_menu_items(
-            category_slug=category_slug,            
-            user=user,
-            query=query,
-            limit=limit            
+            category_slug=category_slug, query=query, limit=limit
         )
     )

@@ -19,12 +19,14 @@ from django.urls import path
 from fastapi import APIRouter
 from .views import root, healthcheck
 from Restaurant.views import router as restaurant_router
+from Restaurant.views import end_user_router
 from Profile.views import router as profile_router
 from django.conf import settings
 from django.conf.urls.static import static
 
 
 # django urls
+
 urlpatterns = [
     path('admin/', admin.site.urls)
 ]
@@ -35,9 +37,10 @@ if settings.DEBUG:
 
 base_router = APIRouter()
 
-base_router.add_api_route("/", root, methods=["GET"], name="root")
 base_router.add_api_route("/healthcheck", healthcheck, methods=["GET"], name="healthcheck")
 
+# end user urls
+base_router.include_router(end_user_router)
 # restaurant urls
 base_router.include_router(restaurant_router)
 # profile urls

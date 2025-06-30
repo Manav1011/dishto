@@ -67,5 +67,4 @@ class FranchiseAdminCreationRequest(BaseModel):
     
 class OutletAdminCreationRequest(BaseModel):
     email: EmailStr
-    franchise_slug: Annotated[str, Field(min_length=1, max_length=100)]
     slug: Annotated[str, Field(min_length=1, max_length=100)]

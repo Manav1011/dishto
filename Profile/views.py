@@ -141,9 +141,9 @@ async def create_franchise_admin(data: FranchiseAdminCreationRequest, service: A
 async def create_outlet_admin(
     data: OutletAdminCreationRequest,
     service: AdminCreation = Depends(AdminCreation),
-    user=Depends(is_franchise_admin)
+    franchise=Depends(is_franchise_admin)
 ) -> BaseResponse[OutletAdminCreationResponse]:
     """
     Create a new outlet admin (franchise admin only).
     """
-    return BaseResponse(data=await service.create_outlet_admin(body=data, user=user))
+    return BaseResponse(data=await service.create_outlet_admin(body=data, franchise=franchise))

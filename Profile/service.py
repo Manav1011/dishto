@@ -151,19 +151,11 @@ class AdminCreation:
                 detail=f"Failed to create franchise admin: {str(e)}"
             )
     
-    async def create_outlet_admin(self, body: OutletAdminCreationRequest, user) -> OutletAdminCreationResponse:
-        email = body.email
-        franchise_slug = body.franchise_slug
+    async def create_outlet_admin(self, body: OutletAdminCreationRequest, franchise) -> OutletAdminCreationResponse:
+        email = body.email        
         slug = body.slug
-        try:
-            franchise_object = await Franchise.objects.aget(slug=franchise_slug)
-            admin = await get_related_object(franchise_object, "admin")
-            if admin != user:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You do not have permission to create an outlet admin for this franchise."
-                )
-            outlet_object = await Outlet.objects.aget(slug=slug, franchise=franchise_object)
+        try:            
+            outlet_object = await Outlet.objects.aget(slug=slug, franchise=franchise)
             user_obj = await User.objects.acreate(
                 email=email,
                 role="outlet_owner"
@@ -180,12 +172,7 @@ class AdminCreation:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"User with email {email} already exists."
-            )
-        except Franchise.DoesNotExist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Franchise does not exist."
-            )
+            )        
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -77,3 +77,9 @@ class MenuItemUpdateResponse(BaseModel):
     image: Optional[str] = None
     slug: str
     category_slug: str
+    
+class OutletObjectsUser(BaseModel):
+    outlets: list[OutletObject]
+    
+class MenuItemObjectsUser(BaseModel):
+    items: list[MenuItemObject]
