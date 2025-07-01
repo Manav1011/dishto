@@ -162,3 +162,7 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 AUTH_USER_MODEL = 'Profile.Profile'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery settings for local/manual worker
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'

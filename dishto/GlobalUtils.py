@@ -3,8 +3,15 @@ import uuid
 import random
 import string
 import re
-from django.conf import settings
-import json
+from google import genai
+from qdrant_client import QdrantClient
+import os
+
+genai_client = genai.Client(
+    api_key=os.environ.get("GEMINI_API_KEY"),    
+)
+
+qdrant_client_ = QdrantClient(host="localhost", port=6333)
 
 def is_valid_email(email):
     # RFC 5322 compliant regex

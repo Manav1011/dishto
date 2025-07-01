@@ -11,6 +11,7 @@ from .request import (
 
 from .response import (
     MenuItemObjectsUser,
+    MenuItemsContextualSearchResponse,
     OutletCreationResponse,
     FranchiseObject,
     FranchiseObjects,
@@ -29,7 +30,7 @@ from .response import (
 from .models import Franchise, Outlet, MenuCategory, MenuItem
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_related_object, get_queryset
-from .utils import enhance_menu_item_description_with_ai
+from .utils import enhance_menu_item_description_with_ai, return_matching_menu_items
 from django.contrib.postgres.search import SearchQuery
 
 class RestaurantService:
@@ -661,4 +662,23 @@ class UserRestaurantService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve menu for outlet: {str(e)}"
+            )
+    async def search_menu_items_contextually(self, outlet_slug:str, query: str) -> MenuItemsContextualSearchResponse:
+        try:
+            # search directly in qdrant
+            results = await return_matching_menu_items(
+                query=query,
+                outlet_slug=outlet_slug,
+                limit=10,
+                threshold=0.7
+            )
+            if not results:
+                return MenuItemsContextualSearchResponse(items=[])
+            return MenuItemsContextualSearchResponse(
+                items=[item['slug'] for item in results]
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to search menu items: {str(e)}"
             )

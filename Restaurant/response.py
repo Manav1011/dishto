@@ -83,3 +83,6 @@ class OutletObjectsUser(BaseModel):
     
 class MenuItemObjectsUser(BaseModel):
     items: list[MenuItemObject]
+    
+class MenuItemsContextualSearchResponse(BaseModel):
+    items: list[str]

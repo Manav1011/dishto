@@ -15,9 +15,32 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - '6333:6333'  # HTTP API
+      - '6334:6334'  # gRPC API
+    volumes:
+      - qdrant:/qdrant/storage
+      - ./src/snapshots:/snapshots
+    mem_limit: 256m
+    cpus: 0.2
+    environment:
+      - QDRANT_ALLOW_ORIGIN=*
+    networks:
+      - app-network
+  redis:
+    image: redis:7
+    container_name: dishto_redis
+    restart: always
+    ports:
+      - "6380:6379"
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
+  qdrant:
 
 networks:
   app-network:

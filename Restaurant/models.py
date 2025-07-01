@@ -1,10 +1,10 @@
 from django.db import models
 from dishto.GlobalUtils import generate_unique_hash
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.contrib.postgres.search import SearchVectorField, SearchVector
 from django.dispatch import receiver
 from django.contrib.postgres.indexes import GinIndex
-
+from .tasks import generate_menu_item_embedding_task
 
 # Create your models here.
 
@@ -74,7 +74,6 @@ class MenuItem(models.Model):
     image = models.ImageField(upload_to='menu_items/', null=True, blank=True)
     display_order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
-    
     search_vector = SearchVectorField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
@@ -91,10 +90,21 @@ class MenuItem(models.Model):
         ]
         
 @receiver(post_save, sender=MenuItem)
-def update_menu_item_vector(sender, instance, **kwargs):
+def update_menu_item_vector_signal(sender, instance, **kwargs):
     MenuItem.objects.filter(pk=instance.pk).update(
         search_vector=SearchVector(models.F("name"), models.F("description"))
     )
+
+@receiver(pre_save, sender=MenuItem)
+def generate_menu_item_embedding_signal(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            old = MenuItem.objects.get(pk=instance.pk)
+            if old.name == instance.name and old.description == instance.description:
+                return  # No change, skip updating search_vector
+        except MenuItem.DoesNotExist:
+            pass  # New object, proceed to update
+    generate_menu_item_embedding_task.delay(name=instance.name, description=instance.description, slug=instance.slug, outlet_slug=instance.category.outlet.slug)
 
 class Order(models.Model):
     ORDER_STATUS = (

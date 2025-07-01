@@ -20,6 +20,7 @@ def get_fastapi_application() -> FastAPI:
     """
     fastapi_app = FastAPI(
         title=settings.APP_NAME,
+        root_path="/api",
         version=settings.APP_VERSION,
         docs_url="/docs",
         redoc_url="/redoc" if settings.DEBUG else None,
@@ -33,7 +34,7 @@ def get_fastapi_application() -> FastAPI:
         },
         lifespan=lifespan,
     )
-
+    
     fastapi_app.state.limiter = limiter
     fastapi_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

@@ -19,11 +19,12 @@ from starlette.routing import Mount
 
 
 
-application = get_asgi_application()
-fastapi_application = get_fastapi_application()
+django_application = get_asgi_application()
+application = get_fastapi_application()
+application.mount("/", django_application)  # Mount Django at the root path
 
-# Combined ASGI app
-application = Starlette(routes=[
-    Mount("/api", app=fastapi_application),      # FastAPI served at /api/*
-    Mount("/", app=application),          # Django served at /
-])
+# # Combined ASGI app
+# application = Starlette(routes=[
+#     Mount("/api", app=fastapi_application),      # FastAPI served at /api/*
+#     Mount("/", app=application),          # Django served at /
+# ])

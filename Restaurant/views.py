@@ -30,6 +30,7 @@ from .response import (
     FranchiseObject,
     FranchiseObjects,
     MenuItemObjectsUser,
+    MenuItemsContextualSearchResponse,
     OutletObject,
     OutletObjects,
     MenuCategoryCreationResponse,
@@ -53,6 +54,7 @@ from slowapi.util import get_remote_address
 
 # User Side Router - No Authentication Required
 end_user_router = APIRouter(tags=["End User"])
+
 
 @end_user_router.get(
     path="/",
@@ -82,6 +84,25 @@ async def get_menu_for_outlet(
     return BaseResponse(
         data=await service.get_menu_for_outlet(
             franchise=request.state.franchise, outlet_slug=outlet_slug
+        )
+    )
+
+
+@end_user_router.get(
+    "/menu/{outlet_slug}/search/contextual",
+    summary="Search Menu Items Contextually",
+    description="""Search for menu items in a specific outlet contextually by slug.""",
+)
+@limiter.limit("10/minute")
+async def search_menu_items_contextually(
+    request: Request,
+    outlet_slug: str = Path(..., description="Slug of the outlet"),
+    query: str = Query(..., description="Search query"),
+    service: UserRestaurantService = Depends(UserRestaurantService),
+) -> BaseResponse[MenuItemsContextualSearchResponse]:
+    return BaseResponse(
+        data=await service.search_menu_items_contextually(
+            outlet_slug=outlet_slug, query=query
         )
     )
 
@@ -484,7 +505,7 @@ async def update_menu_item(
             image_content,
             name=f"{category_slug}_{slug}_{uuid.uuid4().hex}.{image.filename.split('.')[-1]}",
         )
-        
+
     request_data = MenuItemUpdateRequest(
         name=name, description=description, price=price, is_available=is_available
     )

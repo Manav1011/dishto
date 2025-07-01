@@ -60,6 +60,10 @@ PASSWORD_FIELD_REQUIRED = "Password field is required."
 
 IMAGE_GEN_MODEL_GEMINI = "gemini-2.0-flash-preview-image-generation"
 
+GEMINI_EMBEDDINGS_MODEL = "text-embedding-004"
+
+MENUITEM_COLLECTION_NAME = "menu_items"
+
 MENU_ITEM_IMAGE_GENRATION_PROMPT = """**Situation**
 You are a world-class food photographer creating a definitive, cinematic culinary image for a premium restaurant's marketing materials, with the ultimate goal of transforming a simple dish into a visually stunning sensory experience.
 
