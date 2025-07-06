@@ -25,7 +25,7 @@ services:
       POSTGRES_PASSWORD: ${PG_PASSWORD}    
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
+      - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d
     networks:
       - app-network
   qdrant:

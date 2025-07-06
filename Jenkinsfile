@@ -1,6 +1,8 @@
 pipeline {
     agent any
-
+    environment {
+            INIT_PATH = "${env.WORKSPACE}/init"
+    }
     stages {
         stage('Clone Repository') {
             steps {
