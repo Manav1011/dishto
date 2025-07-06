@@ -27,7 +27,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./dishto_backup.sql:/docker-entrypoint-initdb.d/dishto_backup.sql
+      - ./init:/docker-entrypoint-initdb.d
     networks:
       - app-network
   qdrant:
