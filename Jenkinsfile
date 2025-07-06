@@ -1,20 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        // From folder-scoped Jenkins credentials (must match IDs)
-        GEMINI_API_KEY = credentials("GEMINI_API_KEY")
-        PG_USER = credentials("PG_USER")
-        PG_DB = credentials("PG_DB")
-        PG_PASSWORD = credentials("PG_PASSWORD")
-        PG_HOST = credentials("PG_HOST")
-        PG_PORT = credentials("PG_PORT")
-        QDRANT_HOST = credentials("QDRANT_HOST")
-        QDRANT_PORT = credentials("QDRANT_PORT")
-        REDIS_HOST = credentials("REDIS_HOST")
-        REDIS_PORT = credentials("REDIS_PORT")
-    }
-
     stages {
         stage('Clone Repository') {
             steps {
