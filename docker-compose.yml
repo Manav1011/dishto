@@ -13,25 +13,12 @@ services:
       - postgres
       - qdrant
       - redis
-    environment:
-      - GEMINI_API_KEY=AIzaSyDuSkpTts3tGQtbxKgZFxIRkUOITYRpqSk
-      - PG_USER=admin
-      - PG_DB=dishto
-      - PG_PASSWORD=admin
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     networks:
       - app-network    
   postgres:
     image: postgres:15
     container_name: dishto_postgres_db
-    restart: always
-    env_file:
-      - .env
+    restart: always    
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER}

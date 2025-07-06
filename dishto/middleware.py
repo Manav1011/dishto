@@ -93,10 +93,9 @@ class FranchiseMiddleware:
                     return
             else:
                 request = Request(scope, receive=receive)
-                test_cookie = request.cookies.get("dev")
-                print(test_cookie)
+                test_cookie = request.cookies.get("dev")                
                 if test_cookie == "true":
-                    scope["state"]["franchise"] = await Franchise.objects.aget(slug='ce3e5b235d3a418a_1749737758950')
+                    scope["state"]["franchise"] = await Franchise.objects.aget(slug='ce3e5b235d3a418a_1749737758950')                    
         await self.app(scope, receive, send)
 
 
