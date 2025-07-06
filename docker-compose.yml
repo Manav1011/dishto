@@ -13,8 +13,6 @@ services:
       - postgres
       - qdrant
       - redis    
-    volumes:
-      - .:/app
     networks:
       - dishto-net
     healthcheck:
@@ -34,9 +32,7 @@ services:
       - qdrant
       - postgres
       - redis
-    command: celery -A dishto worker --loglevel=info    
-    volumes:
-      - .:/app
+    command: celery -A dishto worker --loglevel=info        
     networks:
       - dishto-net
     healthcheck:
