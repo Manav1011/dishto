@@ -22,20 +22,11 @@ pipeline {
             }
         }
 
-        stage('Prepare .env File') {
+        stage('Inject .env from Jenkins Secret File') {
             steps {
-                sh '''
-                echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
-                echo "PG_USER=$PG_USER" >> .env
-                echo "PG_DB=$PG_DB" >> .env
-                echo "PG_PASSWORD=$PG_PASSWORD" >> .env
-                echo "PG_HOST=$PG_HOST" >> .env
-                echo "PG_PORT=$PG_PORT" >> .env
-                echo "QDRANT_HOST=$QDRANT_HOST" >> .env
-                echo "QDRANT_PORT=$QDRANT_PORT" >> .env
-                echo "REDIS_HOST=$REDIS_HOST" >> .env
-                echo "REDIS_PORT=$REDIS_PORT" >> .env
-                '''
+                withCredentials([file(credentialsId: 'd63654a7-3421-4802-bebf-e3652e9b6141', variable: 'ENV_FILE')]) {
+                    sh 'cp "$ENV_FILE" .env'
+                }
             }
         }
 
