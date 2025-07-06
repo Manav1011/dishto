@@ -11,7 +11,8 @@ genai_client = genai.Client(
     api_key=os.environ.get("GEMINI_API_KEY"),    
 )
 
-qdrant_client_ = QdrantClient(host="localhost", port=6333)
+qdrant_client_ = QdrantClient(host=os.getenv("QDRANT_HOST","localhost"), port=int(os.getenv("QDRANT_PORT", 6333)))
+print(f"Qdrant Client initialized with host: {os.getenv('QDRANT_HOST', 'localhost')} and port: {os.getenv('QDRANT_PORT', 6333)}")
 
 def is_valid_email(email):
     # RFC 5322 compliant regex

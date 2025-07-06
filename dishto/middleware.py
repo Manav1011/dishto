@@ -80,16 +80,23 @@ class FranchiseMiddleware:
         headers = dict(scope["headers"])
         host = headers.get(b"host", b"").decode("latin-1").split(":")[0]  # remove port if present
         parts = host.split(".")
-        subdomain = parts[0] if len(parts) > 2 else None
-        if subdomain != 'dev':
-            try:
-                franchise = await Franchise.objects.aget(subdomain=subdomain)            
-                scope.setdefault("state", {})
-                scope["state"]["franchise"] = franchise
-            except Franchise.DoesNotExist:
-                response = JSONResponse({"detail": "Franchise not found"}, status_code=404)
-                await response(scope, receive, send)
-                return
+        subdomain = parts[0] if len(parts) > 2 else None                      
+        scope.setdefault("state", {})
+        if subdomain is not None:
+            if subdomain != 'dev':
+                try:
+                    franchise = await Franchise.objects.aget(subdomain=subdomain)
+                    scope["state"]["franchise"] = franchise
+                except Franchise.DoesNotExist:
+                    response = JSONResponse({"detail": "Franchise not found"}, status_code=404)
+                    await response(scope, receive, send)
+                    return
+            else:
+                request = Request(scope, receive=receive)
+                test_cookie = request.cookies.get("dev")
+                print(test_cookie)
+                if test_cookie == "true":
+                    scope["state"]["franchise"] = await Franchise.objects.aget(slug='ce3e5b235d3a418a_1749737758950')
         await self.app(scope, receive, send)
 
 

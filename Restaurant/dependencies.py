@@ -40,3 +40,13 @@ async def is_outlet_admin(request: Request, outlet_slug: str = Path(...)):
             detail="Outlet not found."
         )
     return outlet
+
+async def franchise_exists(request: Request):
+    """
+    Dependency to check if the franchise exists.
+    Raises HTTPException if the franchise does not exist.
+    """
+    franchise = getattr(request.state, "franchise", None)
+    if not franchise:
+        raise HTTPException(status_code=404, detail="Franchise not found.")
+    return franchise

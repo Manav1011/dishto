@@ -47,7 +47,7 @@ from .service import RestaurantService, MenuService, UserRestaurantService
 from .models import MenuCategory, MenuItem
 from django.core.files.base import ContentFile
 from core.dependencies import is_superadmin
-from .dependencies import is_franchise_admin, is_outlet_admin
+from .dependencies import franchise_exists, is_franchise_admin, is_outlet_admin
 from .utils import generate_menu_item_image
 from core.utils.limiters import limiter
 from slowapi.util import get_remote_address
@@ -59,7 +59,8 @@ end_user_router = APIRouter(tags=["End User"])
 @end_user_router.get(
     path="/",
     summary="Get All Outlets",
-    description="""Retrieve all outlets for the franchise.""",
+    description="""Retrieve all outlets for the franchise.""",    
+    dependencies=[Depends(franchise_exists)]
 )
 @limiter.limit("10/minute")
 async def get_outlets_for_user(
@@ -74,6 +75,7 @@ async def get_outlets_for_user(
     "/menu/{outlet_slug}",
     summary="Get Menu for Outlet",
     description="""Retrieve the menu for a specific outlet by slug.""",
+    dependencies=[Depends(franchise_exists)]
 )
 @limiter.limit("10/minute", key_func=get_remote_address)
 async def get_menu_for_outlet(
@@ -92,6 +94,7 @@ async def get_menu_for_outlet(
     "/menu/{outlet_slug}/search/contextual",
     summary="Search Menu Items Contextually",
     description="""Search for menu items in a specific outlet contextually by slug.""",
+    dependencies=[Depends(franchise_exists)]
 )
 @limiter.limit("10/minute")
 async def search_menu_items_contextually(
