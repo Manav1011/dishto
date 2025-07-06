@@ -1,11 +1,32 @@
 version: '3.8'
 
 services:
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    env_file:
+      - .env.local
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app-network
+    command: celery -A dishto worker --loglevel=info
+    healthcheck:
+      test: ["CMD", "celery", "-A", "dishto", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   postgres:
     image: postgres:15    
     restart: always
     env_file:
-      - .env
+      - .env.local
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER}
@@ -17,11 +38,18 @@ services:
       - ./dishto_backup.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${PG_USER} -d $${PG_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   qdrant:
     image: qdrant/qdrant
     ports:
-      - '6333:6333'  # HTTP API
-      - '6334:6334'  # gRPC API
+      - '6333:6333'
+      - '6334:6334'
     volumes:
       - qdrant:/qdrant/storage
       - ./src/snapshots:/snapshots
@@ -32,6 +60,13 @@ services:
       - QDRANT_ALLOW_ORIGIN=*
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   redis:
     image: redis:7    
     restart: always
@@ -39,6 +74,12 @@ services:
       - "6380:6379"
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres_data:

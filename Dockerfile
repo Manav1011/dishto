@@ -19,6 +19,3 @@ COPY . .
 
 # Expose the port your app runs on
 EXPOSE 8080
-
-# Command to run your FastAPI app
-CMD ["python", "manage.py", "runuvicorn", "0.0.0.0:8080"]

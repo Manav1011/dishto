@@ -6,51 +6,106 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dishto_app
-    restart: always
+    restart: unless-stopped
     ports:
       - "8080:8080"
     depends_on:
       - postgres
       - qdrant
-      - redis
+      - redis    
+    volumes:
+      - .:/app
     networks:
-      - app-network    
+      - dishto-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/protected/healthcheck" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dishto_celery
+    restart: unless-stopped
+    depends_on:
+      - qdrant
+      - postgres
+      - redis
+    command: celery -A dishto worker --loglevel=info    
+    volumes:
+      - .:/app
+    networks:
+      - dishto-net
+    healthcheck:
+      test: ["CMD", "celery", "-A", "dishto", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   postgres:
     image: postgres:15
-    container_name: dishto_postgres_db
-    restart: always    
+    container_name: dishto_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}    
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d
+      - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d:ro
     networks:
-      - app-network
-  qdrant:
-    image: qdrant/qdrant    
-    volumes:
-      - qdrant:/qdrant/storage
-      - ./src/snapshots:/snapshots
-    restart: always
-    mem_limit: 256m
-    cpus: 0.2
-    environment:
-      - QDRANT_ALLOW_ORIGIN=*
-    networks:
-      - app-network
+      - dishto-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${PG_USER} -d $${PG_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   redis:
     image: redis:7
     container_name: dishto_redis
-    restart: always    
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
     networks:
-      - app-network
+      - dishto-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: dishto_qdrant
+    restart: unless-stopped
+    environment:
+      - QDRANT_ALLOW_ORIGIN=*
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ./src/snapshots:/snapshots:ro
+    mem_limit: 256m
+    cpus: 0.2
+    networks:
+      - dishto-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres_data:
-  qdrant:
+  redis_data:
+  qdrant_data:
 
 networks:
-  app-network:
+  dishto-net:
     driver: bridge
