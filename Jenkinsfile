@@ -19,15 +19,15 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 sh '''
-                docker-compose down || true
-                docker-compose up -d --build
+                docker compose down || true
+                docker compose up -d --build
                 '''
             }
         }
 
         stage('Show Logs (optional)') {
             steps {
-                sh 'docker-compose logs --tail=20'
+                sh 'docker compose logs --tail=20'
             }
         }
     }
