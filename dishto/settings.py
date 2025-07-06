@@ -31,6 +31,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://dishto.in",
+]
+
 # Application definition
 
 INSTALLED_APPS = [
