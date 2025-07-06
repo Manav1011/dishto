@@ -2,8 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15
-    container_name: dishto_postgres_db
+    image: postgres:15    
     restart: always
     env_file:
       - .env
@@ -34,8 +33,7 @@ services:
     networks:
       - app-network
   redis:
-    image: redis:7
-    container_name: dishto_redis
+    image: redis:7    
     restart: always
     ports:
       - "6380:6379"
