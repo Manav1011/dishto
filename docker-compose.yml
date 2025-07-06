@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: dishto_app
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     depends_on:
@@ -15,6 +17,7 @@ services:
       - redis    
     networks:
       - dishto-net
+    command: python manage.py runuvicorn 0.0.0.0:8080
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/protected/healthcheck" ]
       interval: 30s
@@ -28,6 +31,8 @@ services:
       dockerfile: Dockerfile
     container_name: dishto_celery
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - qdrant
       - postgres
@@ -90,12 +95,6 @@ services:
     cpus: 0.2
     networks:
       - dishto-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
 
 volumes:
   postgres_data:

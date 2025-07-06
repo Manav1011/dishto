@@ -18,6 +18,8 @@ staticfiles/
 .env.local
 .env.prod
 .env.*.local
+.local.env
+.prod.env
 
 # IDE
 .vscode/
