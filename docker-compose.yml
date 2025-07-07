@@ -37,7 +37,7 @@ services:
       - qdrant
       - postgres
       - redis
-    command: celery -A dishto worker --loglevel=info        
+    command: celery -A dishto worker --loglevel=info --concurrency=1 --pool=solo
     networks:
       - dishto-net
     healthcheck:
