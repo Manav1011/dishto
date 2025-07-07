@@ -669,8 +669,7 @@ class UserRestaurantService:
             results = await return_matching_menu_items(
                 query=query,
                 outlet_slug=outlet_slug,
-                limit=10,
-                threshold=0.7
+                limit=10
             )
             if not results:
                 return MenuItemsContextualSearchResponse(items=[])
