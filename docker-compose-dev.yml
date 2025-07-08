@@ -23,7 +23,7 @@ services:
       start_period: 20s
 
   postgres:
-    image: postgres:15    
+    image: postgres
     restart: always
     env_file:
       - .env.local
@@ -35,7 +35,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./dishto_backup.sql:/docker-entrypoint-initdb.d/init.sql
+      - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d:ro
     networks:
       - app-network
     healthcheck:
@@ -48,8 +48,7 @@ services:
   qdrant:
     image: qdrant/qdrant
     ports:
-      - '6333:6333'
-      - '6334:6334'
+      - '6335:6333'
     volumes:
       - qdrant:/qdrant/storage
       - ./src/snapshots:/snapshots

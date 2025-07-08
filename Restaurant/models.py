@@ -75,6 +75,8 @@ class MenuItem(models.Model):
     display_order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
     search_vector = SearchVectorField(blank=True, null=True)
+    likes = models.PositiveIntegerField(default=0)
+    special_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:
