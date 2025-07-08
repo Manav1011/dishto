@@ -8,7 +8,7 @@ services:
     volumes:
       - .:/app
     env_file:
-      - .env.local
+      - .local.env
     depends_on:
       - postgres
       - redis
@@ -26,7 +26,7 @@ services:
     image: postgres
     restart: always
     env_file:
-      - .env.local
+      - .local.env
     environment:
       POSTGRES_DB: ${PG_DB}
       POSTGRES_USER: ${PG_USER}

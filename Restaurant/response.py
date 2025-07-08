@@ -30,6 +30,7 @@ class MenuCategoryCreationResponse(BaseModel):
     description: str
     is_active: bool
     slug: str
+    image: Optional[str] = None
 
 class MenuCategoryObject(BaseModel):
     name: str

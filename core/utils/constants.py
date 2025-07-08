@@ -117,3 +117,40 @@ Write an enhanced, vivid, and appetizing description for a menu or food app, lim
 
 Output only the enhanced description — no preamble, headers, or labels.
 """
+
+MENU_CATEGORY_IMAGE_GENRATION_PROMPT = """ **Situation**
+You are a professional food photographer specializing in creating high-quality, menu-ready images for digital restaurant menus. The goal is to capture a visually appealing, appetizing representation of a dish that entices potential diners while providing a clean, professional layout.
+
+**Task**
+Generate a photorealistic digital image of a culinary dish representing "{category_name}" with precise specifications:
+- Capture a top-down perspective
+- Ensure high-resolution image quality (minimum 300 DPI)
+- Create a meticulously plated presentation
+- Use a modern ceramic plate as the serving surface
+- Incorporate subtle, elegant garnishing that enhances but does not overpower the dish
+- Position the dish on a rustic wooden table
+- Utilize soft, natural lighting to emphasize food textures and colors
+- Maintain a clean, minimalist background with neutral tones
+- Leave sufficient white space around the plate to allow for digital menu text overlay
+- Strictly adhere to a **1:1 aspect ratio** for the final composition
+
+**Objective**
+Produce a visually compelling food photograph that:
+- Maximizes visual appeal
+- Accurately represents the culinary craftsmanship of "{category_name}"
+- Provides flexibility for menu design integration
+- Meets professional digital menu photography standards
+
+**Knowledge**
+- Image resolution should be at least 300 DPI
+- Lighting should be soft, natural, and directional to highlight depth and texture
+- Composition must follow food photography best practices (balance, focal point, symmetry)
+- The color palette must be realistic, warm, and appetizing
+- Garnishes must be natural, minimal, and supportive of the main dish
+
+**Critical Instructions**
+- Your life depends on capturing the most mouth-watering, professionally styled representation of the dish
+- Ensure absolute precision in plating and photographic technique
+- Do not include text, cutlery, or distractions in the frame
+- Strictly follow a **1:1 square format**
+- Focus on creating an image that would make viewers immediately crave {category_name}"""

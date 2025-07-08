@@ -35,6 +35,11 @@ class Outlet(models.Model):
     
     def __str__(self):
         return self.name
+    
+
+class CategoryImage(models.Model):
+    category_name = models.CharField(max_length=100, unique=True)
+    image = models.ImageField(upload_to='category_images/')
 
 class MenuCategory(models.Model):
     name = models.CharField(max_length=100)
@@ -43,7 +48,7 @@ class MenuCategory(models.Model):
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
-    
+    image = models.ForeignKey(CategoryImage, on_delete=models.DO_NOTHING, null=True, blank=True)
     search_vector = SearchVectorField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -64,7 +69,26 @@ def update_menu_category_vector(sender, instance, **kwargs):
     MenuCategory.objects.filter(pk=instance.pk).update(
         search_vector=SearchVector(models.F("name"), models.F("description"))
     )
+    
+offer_title_choices = [
+    ('discount', 'Discount'),
+    ('buy_one_get_one', 'Buy One Get One')
+]
 
+offer_type_choices = [
+    ('percentage', 'Percentage'),
+    ('flat', 'Fixed Amount')
+]
+
+class Offers(models.Model):
+    title = models.CharField(max_length=100, choices=offer_title_choices, default='discount')
+    type = models.CharField(max_length=20, choices=offer_type_choices, default='flat')
+    value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    description = models.TextField(null=True, blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)    
+    
 class MenuItem(models.Model):
     name = models.CharField(max_length=100)
     category = models.ForeignKey('Restaurant.MenuCategory', on_delete=models.CASCADE)
@@ -77,6 +101,7 @@ class MenuItem(models.Model):
     search_vector = SearchVectorField(blank=True, null=True)
     likes = models.PositiveIntegerField(default=0)
     special_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    offers = models.ManyToManyField('Restaurant.Offers', related_name='menu_items', blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:

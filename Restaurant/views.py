@@ -44,7 +44,7 @@ from .response import (
     OutletObjectsUser,
 )
 from .service import RestaurantService, MenuService, UserRestaurantService
-from .models import MenuCategory, MenuItem
+from .models import MenuCategory, MenuItem, CategoryImage
 from django.core.files.base import ContentFile
 from core.dependencies import is_superadmin
 from .dependencies import franchise_exists, is_franchise_admin, is_outlet_admin
@@ -522,6 +522,29 @@ async def update_menu_item(
         )
     )
 
+@router.patch(
+    "/{outlet_slug}/items/{category_slug}/{slug}/like",
+    summary="Like Menu Item",
+    description="""Like a menu item to increase its popularity score."""
+)
+@limiter.limit("1/minute")
+async def like_menu_item(
+    request: Request,
+    category_slug: str,
+    slug: str,
+    service: MenuService = Depends(MenuService),
+    outlet=Depends(is_outlet_admin),
+) -> BaseResponse:
+    """
+    Like a menu item to increase its popularity score.
+
+    Requires the user to be the admin of the outlet.
+    """
+    return BaseResponse(
+        data=await service.like_menu_item(
+            category_slug=category_slug, slug=slug
+        )
+    )
 
 @router.patch(
     "/{outlet_slug}/items/{category_slug}/{slug}",

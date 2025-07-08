@@ -27,10 +27,10 @@ from .response import (
     MenuItemUpdateResponse,
     OutletObjectsUser
 )
-from .models import Franchise, Outlet, MenuCategory, MenuItem
+from .models import Franchise, Outlet, MenuCategory, MenuItem, CategoryImage
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_related_object, get_queryset
-from .utils import enhance_menu_item_description_with_ai, return_matching_menu_items
+from .utils import enhance_menu_item_description_with_ai, return_matching_menu_items, generate_menu_category_image
 from django.contrib.postgres.search import SearchQuery
 
 class RestaurantService:
@@ -151,11 +151,26 @@ class MenuService:
                 outlet=outlet,
                 description=body.description
             )
+            # generte image for the category
+            image = None
+            try:
+                image = await CategoryImage.objects.aget(category_name=category.name)
+            except CategoryImage.DoesNotExist:
+                # Generate image using AI
+                image_content = await generate_menu_category_image(category.name)
+                if image_content:
+                    image = await CategoryImage.objects.acreate(
+                        category_name=category.name,
+                        image=image_content
+                    )
+                    category.image = image
+                    await category.asave()
             return MenuCategoryCreationResponse(
                 name=category.name,
                 description=category.description,
                 is_active=category.is_active,
-                slug=category.slug
+                slug=category.slug,
+                image=image.image.url if image else None
             )        
         except Exception as e:
             raise HTTPException(
@@ -474,16 +489,11 @@ class MenuService:
                 detail=f"Failed to update menu item: {str(e)}"
             )
 
-    async def delete_menu_item(self, category_slug: str, slug: str, user):
+    async def delete_menu_item(self, category_slug: str, slug: str):
         try:
             category = await MenuCategory.objects.aget(slug=category_slug)
             outlet = await get_related_object(category, "outlet")
-            admin = await get_related_object(outlet, "admin")
-            if admin != user:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You do not have permission to delete menu items for this outlet."
-                )
+            admin = await get_related_object(outlet, "admin")            
             
             item = await MenuItem.objects.aget(slug=slug, category=category)
             
@@ -512,6 +522,30 @@ class MenuService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete menu item: {str(e)}"
             )
+            
+    async def like_menu_item(self, category_slug: str, slug: str):
+        try:
+            category = await MenuCategory.objects.aget(slug=category_slug)
+            item = await MenuItem.objects.aget(slug=slug, category=category)
+            item.likes += 1
+            await item.asave()
+            return {"message": "Menu item liked successfully"}
+        except MenuCategory.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Menu category not found."
+            )
+        except MenuItem.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Menu item not found."
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to like menu item: {str(e)}"
+            )
+            
     async def enhance_menu_item_description_with_ai(self, item_name: str, description: str) -> str:
         """
         Enhances the menu item description using AI.

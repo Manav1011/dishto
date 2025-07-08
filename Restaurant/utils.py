@@ -12,6 +12,7 @@ from core.utils.constants import (
     MENU_ITEM_DESCRIPTION_ENHANCEMENT_SYSTEM_PROMPT,
     GEMINI_EMBEDDINGS_MODEL,
     MENUITEM_COLLECTION_NAME,
+    MENU_CATEGORY_IMAGE_GENRATION_PROMPT
 )
 from anyio import to_thread  # Use anyio for FastAPI compatibility
 from dishto.GlobalUtils import genai_client, qdrant_client_
@@ -203,3 +204,44 @@ async def generate_menu_item_embedding(
     )
     # insert it into qdrant
     qdrant_client_.upsert(collection_name=MENUITEM_COLLECTION_NAME, points=[point])
+
+
+async def generate_menu_category_image(
+    category_name: str, max_retries: int = 3, delay: float = 2.0
+) -> ContentFile:
+    """
+    Generates a photorealistic menu category image using Gemini and returns a Django ContentFile.
+    Runs the blocking Gemini call in a thread to avoid blocking the event loop.
+    Retries on failure.
+    """
+    prompt = MENU_CATEGORY_IMAGE_GENRATION_PROMPT.format(category_name=category_name)
+    
+    model = IMAGE_GEN_MODEL_GEMINI
+    generate_content_config = types.GenerateContentConfig(
+        temperature=2,
+        top_p=1,
+        response_modalities=["IMAGE", "TEXT"],
+        response_mime_type="text/plain",
+    )
+
+    last_exception = None
+    async with GEMINI_IMAGE_SEMAPHORE:
+        for attempt in range(1, max_retries + 1):
+            try:
+                result = await to_thread.run_sync(
+                    _blocking_gemini_image,
+                    category_name,
+                    category_name,
+                    prompt,
+                    model,
+                    generate_content_config,
+                )
+                return result
+            except Exception as e:
+                last_exception = e
+                print(f"[Gemini] Category image attempt {attempt} failed: {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(delay)
+    raise RuntimeError(
+        f"Failed to generate category image from Gemini after {max_retries} attempts. Last error: {last_exception}"
+    )
