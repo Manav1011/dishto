@@ -25,8 +25,8 @@ pipeline {
                 docker compose down || true
                 docker compose build
                 # Run migrations before starting the app
-                docker compose run --rm web python manage.py makemigrations --noinput
-                docker compose run --rm web python manage.py migrate --noinput
+                docker compose run --rm app python manage.py makemigrations --noinput
+                docker compose run --rm app python manage.py migrate --noinput
                 docker compose up -d
                 '''
             }
