@@ -23,7 +23,11 @@ pipeline {
             steps {
                 sh '''
                 docker compose down || true
-                docker compose up -d --build
+                docker compose build
+                # Run migrations before starting the app
+                docker compose run --rm web python manage.py makemigrations --noinput
+                docker compose run --rm web python manage.py migrate --noinput
+                docker compose up -d
                 '''
             }
         }
