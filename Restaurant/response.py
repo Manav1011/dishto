@@ -36,6 +36,7 @@ class MenuCategoryObject(BaseModel):
     name: str
     description: str
     is_active: bool
+    image: Optional[str] = None
     slug: str
 
 class MenuCategoryObjects(BaseModel):

@@ -192,24 +192,33 @@ class MenuService:
                 categories = await get_queryset(list, queryset)                
                 last_seen_order = categories[-1].display_order if categories else None
                                 
-                return MenuCategoryObjects(
-                    last_seen_order=last_seen_order,
-                    categories=[
+                categories_objs = []
+                for c in categories:
+                    img_obj = await get_related_object(c, "image")
+                    image_url = img_obj.image.url if img_obj else None
+                    categories_objs.append(
                         MenuCategoryObject(
                             name=c.name,
                             description=c.description or "",
                             is_active=c.is_active,
+                            image=image_url,
                             slug=c.slug
-                        ) for c in categories
-                    ]
+                        )
+                    )
+                return MenuCategoryObjects(
+                    last_seen_order=last_seen_order,
+                    categories=categories_objs
                 )
             else:
                 try:
                     category = await MenuCategory.objects.aget(slug=slug, outlet=outlet)
+                    img_obj = await get_related_object(category, "image")
+                    image_url = img_obj.image.url if img_obj else None
                     return MenuCategoryObject(
                         name=category.name,
                         description=category.description or "",
                         is_active=category.is_active,
+                        image=image_url,
                         slug=category.slug
                     )
                 except MenuCategory.DoesNotExist:
