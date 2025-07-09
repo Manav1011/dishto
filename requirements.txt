@@ -52,7 +52,7 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 nest-asyncio==1.6.0
 numpy
-packaging==25.0
+packaging>=23.2,<24.0
 parso==0.8.4
 pexpect==4.9.0
 pillow==11.2.1
@@ -104,3 +104,5 @@ watchfiles==1.0.5
 wcwidth==0.2.13
 websockets==15.0.1
 wrapt==1.17.2
+langchain-core
+langchain-text-splitters

@@ -707,8 +707,15 @@ class UserRestaurantService:
             )
             if not results:
                 return MenuItemsContextualSearchResponse(items=[])
+            seen = set()
+            unique_slugs = []
+            for item in results:
+                slug = item['slug']
+                if slug not in seen:
+                    seen.add(slug)
+                    unique_slugs.append(slug)
             return MenuItemsContextualSearchResponse(
-                items=[item['slug'] for item in results]
+                items=unique_slugs
             )
         except Exception as e:
             raise HTTPException(

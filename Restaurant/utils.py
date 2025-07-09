@@ -17,11 +17,17 @@ from core.utils.constants import (
 from anyio import to_thread  # Use anyio for FastAPI compatibility
 from dishto.GlobalUtils import genai_client, qdrant_client_
 from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 GEMINI_IMAGE_SEMAPHORE = asyncio.Semaphore(9)
 
 GEMINI_DESCRIPTION_SEMAPHORE = asyncio.Semaphore(29)
 
+menu_item_description_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=150,
+        chunk_overlap=30,
+        length_function=len,
+)
 
 def _blocking_gemini_image(
     food_name: str, description: str, prompt: str, model: str, generate_content_config
@@ -161,7 +167,7 @@ async def generate_embeddings(
     if not response.embeddings:
         raise ValueError("No embeddings returned from Gemini.")
 
-    return response.embeddings[0].values
+    return [embedding.values for embedding in response.embeddings]
 
 
 async def return_matching_menu_items(
@@ -175,7 +181,7 @@ async def return_matching_menu_items(
 
     search_results = qdrant_client_.query_points(
         collection_name=MENUITEM_COLLECTION_NAME,
-        query=query_embedding,
+        query=query_embedding[0],
         limit=limit,
         query_filter=Filter(
             must=[
@@ -184,26 +190,44 @@ async def return_matching_menu_items(
                 ),
             ]
         ),
-        score_threshold=threshold,
         with_payload=True,
     )
     return [point.payload for point in search_results.points]
 
+async def return_embeddings_given_chunks(
+    chunks: list[str], model: str = GEMINI_EMBEDDINGS_MODEL
+) -> list[list[float]]:
+    """
+    Generates embeddings for a list of text chunks using the specified model.
+    Returns a list of embeddings, one for each chunk.
+    """
+    if not chunks:
+        return []
+
+    # Generate embeddings for all chunks
+    embeddings = await generate_embeddings(chunks, model=model)
+    
+    return embeddings
 
 async def generate_menu_item_embedding(
     name: str, description: str, slug: str, outlet_slug: str
 ) -> None:
-    embedding = await generate_embeddings([name + description])
-    # Ensure the id is a valid UUID
-    point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, slug))
+    # New approach will use multiple embedding chunks for this
+    chunks = menu_item_description_splitter.split_text(description)
 
-    point = PointStruct(
-        id=point_id,
-        vector=embedding,
-        payload={"slug": slug, "outlet_slug": outlet_slug},
-    )
+    embeddings = await return_embeddings_given_chunks(chunks)
+    if not embeddings:return
+    points = []
+    for i, embedding in enumerate(embeddings):
+        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{slug}_{i}"))
+        point = PointStruct(
+            id=point_id,
+            vector=embedding,
+            payload={"slug": slug, "outlet_slug": outlet_slug}
+        )
+        points.append(point)
     # insert it into qdrant
-    qdrant_client_.upsert(collection_name=MENUITEM_COLLECTION_NAME, points=[point])
+    qdrant_client_.upsert(collection_name=MENUITEM_COLLECTION_NAME, points=points)
 
 
 async def generate_menu_category_image(
