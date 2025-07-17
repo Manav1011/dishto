@@ -65,7 +65,7 @@ class MenuItemObject(BaseModel):
     is_available: bool
     image: Optional[str] = None
     slug: str
-    category_slug: str
+    category_slug: Optional[str] = None
 
 class MenuItemObjects(BaseModel):
     last_seen_order: Optional[int] = None
