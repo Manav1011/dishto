@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'core',
     'Profile',
     'Restaurant',
+    'Inventory'
 ]
 
 MIDDLEWARE = [

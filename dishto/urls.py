@@ -21,6 +21,7 @@ from fastapi import APIRouter
 from .views import root, healthcheck
 from Restaurant.views import router as restaurant_router
 from Restaurant.views import end_user_router
+from Inventory.views import inventory_router
 from Profile.views import router as profile_router
 from django.conf import settings
 from django.conf.urls.static import static
@@ -47,3 +48,5 @@ base_router_protected.add_api_route(
 base_router_protected.include_router(restaurant_router)
 # profile urls
 base_router_protected.include_router(profile_router)
+# inventory urls
+base_router_protected.include_router(inventory_router)
