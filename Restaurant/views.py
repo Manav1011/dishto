@@ -88,7 +88,7 @@ async def get_menu_categories_for_outlet(
     )
 
 @end_user_router.get(
-    "/menu/{outlet_slug}/{category_slug}",
+    "/menu/{outlet_slug}/{category_slug}/{slug}",
     summary="Get Menu Items for Category",
     description="""Retrieve the menu items for a specific category in an outlet by slug.""",
 )
@@ -97,11 +97,12 @@ async def get_menu_items_for_category(
     request: Request,
     outlet_slug: str = Path(..., description="Slug of the outlet"),
     category_slug: str = Path(..., description="Slug of the category"),
+    slug: str = Path(..., description="Slug of the menu item"),
     service: UserRestaurantService = Depends(UserRestaurantService),
-) -> BaseResponse[MenuItemObjectsUser]:
+) -> BaseResponse[MenuItemObjectsUser | MenuItemObject]:
     return BaseResponse(
         data=await service.get_menu_items_for_category(
-            franchise=request.state.franchise, outlet_slug=outlet_slug, category_slug=category_slug
+            franchise=request.state.franchise, outlet_slug=outlet_slug, category_slug=category_slug, slug=slug
         )
     )
 

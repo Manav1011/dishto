@@ -743,26 +743,37 @@ class UserRestaurantService:
                 detail=f"Failed to retrieve menu for outlet: {str(e)}"
             )
             
-    async def get_menu_items_for_category(self, franchise, outlet_slug: str, category_slug: str) -> MenuItemObjectsUser:
+    async def get_menu_items_for_category(self, franchise, outlet_slug: str, category_slug: str, slug: str) -> MenuItemObjectsUser | MenuItemObject:
         try:
             outlet = await franchise.outlet_set.aget(slug=outlet_slug)
             category = await MenuCategory.objects.aget(slug=category_slug, outlet=outlet)
-            items = await get_queryset(
-                list,
-                MenuItem.objects.filter(category=category).order_by("display_order")
-            )
-            return MenuItemObjectsUser(
-                items=[
-                    MenuItemObject(
+            if slug == "__all__":
+                items = await get_queryset(
+                    list,
+                    MenuItem.objects.filter(category=category).order_by("display_order")
+                )
+                return MenuItemObjectsUser(
+                    items=[
+                        MenuItemObject(
+                            name=item.name,
+                            description=item.description or "",
+                            price=float(item.price),
+                            is_available=item.is_available,
+                            image=item.image.url if item.image else None,
+                            slug=item.slug
+                        ) for item in items
+                    ]
+                )
+            else:
+                item = await MenuItem.objects.aget(slug=slug, category=category)
+                return MenuItemObject(
                         name=item.name,
                         description=item.description or "",
                         price=float(item.price),
                         is_available=item.is_available,
                         image=item.image.url if item.image else None,
                         slug=item.slug
-                    ) for item in items
-                ]
-            )
+                    )
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
