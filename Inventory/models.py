@@ -34,6 +34,7 @@ class OrderItem(TimeStampedModel):
     item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    inventory_transactions = models.ManyToManyField('Inventory.InventoryTransaction', blank=True, related_name='order_items', help_text="Inventory transactions related to this order item")
     slug = models.SlugField(unique=True, null=True, blank=True)
     
     def save(self, *args, **kwargs):
