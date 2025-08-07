@@ -392,6 +392,19 @@ class InventoryService:
             )
 
     async def create_order(self, body: OrderCreateRequest, outlet) -> OrderResponse:
+        """
+        here we'll get the items in body.items so first we need to fetch all the items and their quantity.
+        
+        # costing part
+        get all the menu items objects
+        calculate the pricings aas per quantity
+        
+        #inventory transaction part
+        from each item we'll get it's MenuItemIngredient object so we'll get all the ingrediants used in the menu item
+        then we'll get the ingredient object and then we'll create an InventoryTransaction for each ingredient used in the menu item according to the quantity used.
+        
+        
+        """
         try:
             # Calculate total amount and validate items
             total_amount = Decimal("0.00")
@@ -406,9 +419,9 @@ class InventoryService:
                     "price": item_price
                 })
 
-            # Wrap order and item creation in a sync transaction
+            # Wrap order, item creation, and inventory transaction in a sync transaction
             @sync_to_async
-            def create_order_sync():
+            def create_order_sync_with_inventory():
                 with transaction.atomic():
                     order = Order.objects.create(
                         outlet=outlet,
@@ -416,7 +429,7 @@ class InventoryService:
                         special_instructions=body.special_instructions,
                     )
                     item_objs = [
-                        OrderItem.objects.create(                        
+                        OrderItem.objects.create(
                             item=oi["menu_item"],
                             quantity=oi["quantity"],
                             price=oi["price"],
@@ -424,9 +437,32 @@ class InventoryService:
                         for oi in order_items
                     ]
                     order.order_items.set(item_objs)
+
+                    # Inventory transaction part
+                    for oi in order_items:
+                        menu_item = oi["menu_item"]
+                        quantity_ordered = oi["quantity"]
+                        # Get all MenuItemIngredient objects for this menu item
+                        menu_item_ingredients = list(MenuItemIngredient.objects.filter(menu_item=menu_item))
+                        for mii in menu_item_ingredients:
+                            ingredient = mii.ingredient
+                            # Total quantity used = ingredient quantity per item * number of items ordered
+                            total_ingredient_used = mii.quantity * quantity_ordered
+                            # Create InventoryTransaction (assume 'OUT' for usage)
+                            InventoryTransaction.objects.create(
+                                ingredient=ingredient,
+                                transaction_type='usage',
+                                quantity=total_ingredient_used,
+                                note=f"Used in order {order.slug}",
+                                outlet=outlet
+                            )
+                            # Deduct from ingredient stock
+                            ingredient.current_stock -= total_ingredient_used
+                            ingredient.save()
+
                     return order, item_objs
 
-            order, item_objs = await create_order_sync()
+            order, item_objs = await create_order_sync_with_inventory()
 
             # Build response
             items = []

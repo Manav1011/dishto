@@ -5,4 +5,4 @@ from .models import Franchise, Outlet, MenuCategory, MenuItem
 admin.site.register(Franchise)
 admin.site.register(Outlet)
 admin.site.register(MenuCategory)
-admin.site.register(MenuItem)
+admin.site.register(MenuItem) 
