@@ -2,8 +2,26 @@ from django.db import models
 from core.models import TimeStampedModel
 from Restaurant.models import MenuItem
 from dishto.GlobalUtils import generate_unique_hash
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from decimal import Decimal
 
 # Create your models here.
+
+
+class OrderItem(TimeStampedModel):
+    item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    slug = models.SlugField(unique=True, null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_hash()
+        super(OrderItem, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.item.name}"
 
 class Order(TimeStampedModel):
     ORDER_STATUS = (
@@ -19,7 +37,9 @@ class Order(TimeStampedModel):
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     special_instructions = models.TextField(null=True, blank=True)
+    order_items = models.ManyToManyField(OrderItem, related_name='orders', blank=True, help_text="Items included in this order")
     slug = models.SlugField(unique=True, null=True, blank=True)
+    inventory_transactions = models.ManyToManyField('Inventory.InventoryTransaction', blank=True, related_name='order_items', help_text="Inventory transactions related to this order item")
     
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -27,24 +47,7 @@ class Order(TimeStampedModel):
         super(Order, self).save(*args, **kwargs)
     
     def __str__(self):
-        return f"Order #{self.id} - {self.customer}"
-
-class OrderItem(TimeStampedModel):
-    order = models.ForeignKey('Inventory.Order', on_delete=models.CASCADE)
-    item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    inventory_transactions = models.ManyToManyField('Inventory.InventoryTransaction', blank=True, related_name='order_items', help_text="Inventory transactions related to this order item")
-    slug = models.SlugField(unique=True, null=True, blank=True)
-    
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = generate_unique_hash()
-        super(OrderItem, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.quantity} x {self.item.name}"
-
+        return f"Order - {self.outlet.name} - {self.order_date}"
 class Ingredient(TimeStampedModel):
     UNIT_CHOICES = [
         ('kg', 'Kilogram'),
@@ -76,7 +79,7 @@ class Ingredient(TimeStampedModel):
     def __str__(self):
         return f"{self.name} ({self.current_stock} {self.unit})"
 
-class MenuItemIngredient(models.Model):
+class MenuItemIngredient(TimeStampedModel):
     pk = models.CompositePrimaryKey("menu_item", "ingredient")
     menu_item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE, related_name='ingredients')
     ingredient = models.ForeignKey('Inventory.Ingredient', on_delete=models.CASCADE)
@@ -121,3 +124,20 @@ class InventoryTransaction(TimeStampedModel):
 
     def __str__(self):
         return f"{self.transaction_type} - {self.ingredient.name} ({self.quantity})"
+
+@receiver(post_save, sender=InventoryTransaction)
+def update_ingredient_stock(sender, instance, created, **kwargs):    
+    ingredient = instance.ingredient
+    qty = instance.quantity if isinstance(instance.quantity, Decimal) else Decimal(str(instance.quantity))
+    if instance.transaction_type == 'purchase':
+        ingredient.current_stock = ingredient.current_stock + qty
+    elif instance.transaction_type in ['usage', 'wastage']:
+        new_stock = ingredient.current_stock - qty
+        if new_stock < 0:
+            raise ValueError(f"Stock for ingredient '{ingredient.name}' cannot go negative. Current: {ingredient.current_stock}, Tried to reduce by: {qty}")
+        ingredient.current_stock = new_stock
+    elif instance.transaction_type == 'adjustment':
+        if qty < 0:
+            raise ValueError(f"Stock for ingredient '{ingredient.name}' cannot be set to negative value: {qty}")
+        ingredient.current_stock = qty
+    ingredient.save()
