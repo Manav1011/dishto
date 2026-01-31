@@ -50,19 +50,24 @@ async def obtain_token(data: TokenRequest, service: AuthService = Depends(AuthSe
     data = data.model_dump()
     tokens = await service.obtain_token(body=data)
     response = Response(content=tokens.model_dump_json(), media_type="application/json")
+    # Access token
     response.set_cookie(
         key="access",
         value=tokens.access,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=True,          # HTTPS only
+        samesite="none",      # required for proxy / cross-origin
+        path="/",             # default, explicit for clarity
     )
+
+    # Refresh token
     response.set_cookie(
         key="refresh",
         value=tokens.refresh,
         httponly=True,
         secure=True,
-        samesite="none"        
+        samesite="none",
+        path="/",
     )
     return response
 
@@ -71,18 +76,17 @@ async def logout() -> Response:
     response = Response(content='{"message": "Logged out successfully"}', media_type="application/json")
     # Remove both cookies
     response.delete_cookie(
-        key="access",
-        httponly=True,
+        key="access",        
+        path="/",
         secure=True,
-        samesite="lax",
-        path="/"
+        samesite="none",
     )
+
     response.delete_cookie(
-        key="refresh",
-        httponly=True,
+        key="refresh",        
+        path="/",
         secure=True,
-        samesite="lax",
-        path="/"
+        samesite="none",
     )
 
     return response
@@ -95,19 +99,18 @@ async def refresh_token(request: Request, service: AuthService = Depends(AuthSer
     body = TokenRefreshRequest(refresh=refresh_token).model_dump()
     tokens=await service.refresh_token(body=body)
     response = Response(content=tokens.model_dump_json(), media_type="application/json")
-    response.set_cookie(
+    response.delete_cookie(
         key="access",
-        value=tokens.access,
-        httponly=True,
+        path="/",
         secure=True,
-        samesite="lax"
+        samesite="none",
     )
-    response.set_cookie(
+
+    response.delete_cookie(
         key="refresh",
-        value=tokens.refresh,
-        httponly=True,
+        path="/",
         secure=True,
-        samesite="lax"
+        samesite="none",
     )
     return response
 

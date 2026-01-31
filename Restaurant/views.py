@@ -55,14 +55,13 @@ from slowapi.util import get_remote_address
 # User Side Router - No Authentication Required
 end_user_router = APIRouter(tags=["End User"])
 
-
 @end_user_router.get(
     path="/",
     summary="Get All Outlets",
     description="""Retrieve all outlets for the franchise.""",    
     dependencies=[Depends(franchise_exists)]
 )
-@limiter.limit("10/minute")
+@limiter.limit("50/minute")
 async def get_outlets_for_user(
     request: Request, service: UserRestaurantService = Depends(UserRestaurantService)
 ) -> BaseResponse[OutletObjectsUser]:    
@@ -75,7 +74,7 @@ async def get_outlets_for_user(
     summary="Get Menu Categories for Outlet",
     description="""Retrieve the menu categories for a specific outlet by slug.""",
 )
-@limiter.limit("10/minute", key_func=get_remote_address)
+@limiter.limit("50/minute", key_func=get_remote_address)
 async def get_menu_categories_for_outlet(
     request: Request,
     outlet_slug: str = Path(..., description="Slug of the outlet"),
@@ -93,7 +92,7 @@ async def get_menu_categories_for_outlet(
     description="""Search for menu items in a specific outlet contextually by slug.""",
     dependencies=[Depends(franchise_exists)]
 )
-@limiter.limit("10/minute")
+@limiter.limit("50/minute")
 async def search_menu_items_contextually(
     request: Request,
     outlet_slug: str = Path(..., description="Slug of the outlet"),
@@ -142,11 +141,10 @@ async def get_menu_for_outlet(
         data=await service.get_menu_for_outlet(
             franchise=request.state.franchise, outlet_slug=outlet_slug
         )
-    )
+)
 
 # Admin router
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
-
 
 @router.post(
     "/franchise/",
