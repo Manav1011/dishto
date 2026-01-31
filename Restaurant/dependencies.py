@@ -24,7 +24,7 @@ async def is_outlet_admin(request: Request, outlet_slug: str = Path(...)):
     Raises HTTPException if the user is not an outlet admin.
     """
     user = getattr(request.state, "user", None)
-    franchise = getattr(request.state, "franchise", None)
+    franchise = getattr(request.state, "franchise", None)    
     if not user:
         raise HTTPException(status_code=401, detail="Authentication credentials were not provided.")
     if not franchise:
@@ -45,7 +45,7 @@ async def franchise_exists(request: Request):
     """
     Dependency to check if the franchise exists.
     Raises HTTPException if the franchise does not exist.
-    """
+    """    
     franchise = getattr(request.state, "franchise", None)
     if not franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")

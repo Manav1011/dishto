@@ -28,6 +28,7 @@ class Outlet(TimeStampedModel):
     franchise = models.ForeignKey('Restaurant.Franchise', on_delete=models.CASCADE)
     admin = models.ForeignKey('Profile.Profile', on_delete=models.SET_NULL,null=True,blank=True)
     slug = models.SlugField(unique=True, null=True, blank=True)
+    cover_image = models.ImageField(upload_to='outlet_cover_images/', null=True, blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -36,6 +37,20 @@ class Outlet(TimeStampedModel):
     
     def __str__(self):
         return self.name
+
+class OutletSliderImage(TimeStampedModel):
+    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE, related_name='slider_images')
+    image = models.ImageField(upload_to='outlet_slider_images/')
+    order = models.PositiveIntegerField(default=0)
+    slug = models.SlugField(unique=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_hash()
+        super(OutletSliderImage, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return self.image.name if self.image else str(self.pk)
     
 
 class CategoryImage(TimeStampedModel):

@@ -8,7 +8,6 @@ from .request import (
     MenuItemCreationRequest,
     MenuItemUpdateRequest
 )
-
 from .response import (
     MenuItemObjectsUser,
     MenuItemsContextualSearchResponse,
@@ -25,13 +24,15 @@ from .response import (
     MenuItemObject,
     MenuItemObjects,
     MenuItemUpdateResponse,
-    OutletObjectsUser
+    OutletObjectsUser,
+    OutletSliderImageObject
 )
-from .models import Franchise, Outlet, MenuCategory, MenuItem, CategoryImage
+from .models import Franchise, Outlet, MenuCategory, MenuItem, CategoryImage, OutletSliderImage
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_related_object, get_queryset
 from .utils import enhance_menu_item_description_with_ai, return_matching_menu_items, generate_menu_category_image
 from django.contrib.postgres.search import SearchQuery
+from django.db import transaction
 
 class RestaurantService:
     async def create_franchise(self, body: FranchiseCreationRequest):
@@ -85,52 +86,85 @@ class RestaurantService:
                     detail="Franchise not found."
                 )
 
-    async def create_outlet(self, body: OutletCreationRequest, franchise) -> OutletCreationResponse:
-        try:
+    async def create_outlet(self, body: OutletCreationRequest, franchise, cover_image=None, mid_page_slider=None) -> OutletCreationResponse:
+        try:            
             name = body.name
             outlet = await Outlet.objects.acreate(
                 name=name,
                 franchise=franchise
             )
+            # Save cover image if provided
+            slider_objs = []
+            if cover_image:
+                outlet.cover_image.save(cover_image.name, cover_image, save=False)
+                await outlet.asave()
+            # Save slider images if provided
+            if mid_page_slider:
+                from .models import OutletSliderImage
+                for idx, slider_file in enumerate(mid_page_slider):
+                    slider_obj = await OutletSliderImage.objects.acreate(
+                        outlet=outlet,
+                        order=idx
+                    )
+                    slider_obj.image.save(slider_file.name, slider_file, save=False)
+                    await slider_obj.asave()
+                    slider_objs.append(slider_obj)
+            # Prepare response
+            from .response import OutletSliderImageObject
+            slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_objs] if slider_objs else None
             return OutletCreationResponse(
                 name=outlet.name,
-                slug=outlet.slug
+                slug=str(outlet.slug) if outlet.slug else "",
+                cover_image=outlet.cover_image.url if outlet.cover_image else None,
+                mid_page_slider=slider_response
             )
         except Franchise.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Franchise does not exist."
             )
-        except Exception as e:
+        except Exception as e:                        
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create outlet: {str(e)}"
             )
             
-    async def get_outlet(self, slug: str, franchise, limit: int | None, last_seen_id: int | None) -> OutletObject | OutletObjects:
-        try:                        
+    async def get_outlet(self, slug: str, franchise, limit: int | None, last_seen_id: int | None) -> OutletObject | OutletObjects:        
+        try:
             if slug == "__all__":
                 queryset = Outlet.objects.filter(franchise=franchise).order_by("id")
                 if last_seen_id is not None:
                     queryset = queryset.filter(id__gt=last_seen_id)
-                                                    
                 if limit is not None:
                     queryset = queryset[:limit]
-
                 outlets = await get_queryset(list, queryset)
-                last_seen_id = outlets[-1].id if outlets else None                
+                last_seen_id = outlets[-1].id if outlets else None
+                outlet_objs = []
+                for o in outlets:
+                    slider_imgs = await get_queryset(list, OutletSliderImage.objects.filter(outlet=o).order_by("order"))
+                    slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_imgs] if slider_imgs else None
+                    outlet_objs.append(
+                        OutletObject(
+                            name=o.name,
+                            slug=o.slug,
+                            cover_image=o.cover_image.url if o.cover_image else None,
+                            mid_page_slider=slider_response
+                        )
+                    )
                 return OutletObjects(
                     last_seen_id=last_seen_id,
-                    outlets=[
-                        OutletObject(name=o.name, slug=o.slug) for o in outlets
-                    ]
+                    outlets=outlet_objs
                 )
             else:
                 try:
                     outlet = await Outlet.objects.aget(slug=slug, franchise=franchise)
+                    slider_imgs = await get_queryset(list, OutletSliderImage.objects.filter(outlet=outlet).order_by("order"))
+                    slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_imgs] if slider_imgs else None
                     return OutletObject(
                         name=outlet.name,
-                        slug=outlet.slug
+                        slug=outlet.slug,
+                        cover_image=outlet.cover_image.url if outlet.cover_image else None,
+                        mid_page_slider=slider_response
                     )
                 except Outlet.DoesNotExist:
                     raise HTTPException(
@@ -665,10 +699,22 @@ class UserRestaurantService:
                 list,
                 franchise.outlet_set.all()
             )
+            from .models import OutletSliderImage
+            from .response import OutletSliderImageObject, OutletObject
+            outlet_objs = []
+            for o in outlets:
+                slider_imgs = await get_queryset(list, OutletSliderImage.objects.filter(outlet=o).order_by("order"))
+                slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_imgs] if slider_imgs else None
+                outlet_objs.append(
+                    OutletObject(
+                        name=o.name,
+                        slug=str(o.slug) if o.slug else "",
+                        cover_image=o.cover_image.url if o.cover_image else None,
+                        mid_page_slider=slider_response
+                    )
+                )
             return OutletObjectsUser(
-                outlets=[
-                    OutletObject(name=o.name, slug=o.slug) for o in outlets
-                ]
+                outlets=outlet_objs
             )
         except Exception as e:
             raise HTTPException(
@@ -791,7 +837,7 @@ class UserRestaurantService:
             )
             
     async def search_menu_items_contextually(self, outlet_slug:str, query: str) -> MenuItemsContextualSearchResponse:
-        try:
+        try:            
             # search directly in qdrant
             results = await return_matching_menu_items(
                 query=query,

@@ -30,6 +30,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login")
 async def obtain_token(data: TokenRequest, service: AuthService = Depends(AuthService)) -> Response:
+    """
+    Asynchronously obtains authentication tokens and sets them as HTTP-only cookies in the response.
+
+    Args:
+        data (TokenRequest): The request data containing authentication credentials.
+        service (AuthService, optional): The authentication service dependency. Defaults to Depends(AuthService).
+
+    Returns:
+        Response: An HTTP response containing the serialized tokens in the body and the access/refresh tokens as cookies.
+
+    Notes:
+        - The cookies are set with 'httponly', 'secure', and 'samesite' attributes for security.
+        - The 'samesite' attribute is set to "lax". Other valid options for 'samesite' are:
+            - "strict": Cookies are only sent for same-site requests.
+            - "none": Cookies are sent in all contexts, including cross-site requests (requires 'secure' to be True).
+            - "lax": Cookies are sent for same-site requests and top-level navigation GET requests from other sites.
+    """
     data = data.model_dump()
     tokens = await service.obtain_token(body=data)
     response = Response(content=tokens.model_dump_json(), media_type="application/json")
@@ -38,14 +55,14 @@ async def obtain_token(data: TokenRequest, service: AuthService = Depends(AuthSe
         value=tokens.access,
         httponly=True,
         secure=True,
-        samesite="lax",
+        samesite="none",
     )
     response.set_cookie(
         key="refresh",
         value=tokens.refresh,
         httponly=True,
         secure=True,
-        samesite="lax"        
+        samesite="none"        
     )
     return response
 

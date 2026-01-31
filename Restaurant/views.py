@@ -65,7 +65,7 @@ end_user_router = APIRouter(tags=["End User"])
 @limiter.limit("10/minute")
 async def get_outlets_for_user(
     request: Request, service: UserRestaurantService = Depends(UserRestaurantService)
-) -> BaseResponse[OutletObjectsUser]:
+) -> BaseResponse[OutletObjectsUser]:    
     return BaseResponse(
         data=await service.get_user_outlets(franchise=request.state.franchise)
     )
@@ -86,6 +86,26 @@ async def get_menu_categories_for_outlet(
             franchise=request.state.franchise, outlet_slug=outlet_slug
         )
     )
+
+@end_user_router.get(
+    "/menu/{outlet_slug}/search/contextual",
+    summary="Search Menu Items Contextually",
+    description="""Search for menu items in a specific outlet contextually by slug.""",
+    dependencies=[Depends(franchise_exists)]
+)
+@limiter.limit("10/minute")
+async def search_menu_items_contextually(
+    request: Request,
+    outlet_slug: str = Path(..., description="Slug of the outlet"),
+    query: str = Query(..., description="Search query"),
+    service: UserRestaurantService = Depends(UserRestaurantService),
+) -> BaseResponse[MenuItemsContextualSearchResponse]:    
+    return BaseResponse(
+        data=await service.search_menu_items_contextually(
+            outlet_slug=outlet_slug, query=query
+        )
+    )
+
 
 @end_user_router.get(
     "/menu/{outlet_slug}/{category_slug}/{slug}",
@@ -123,27 +143,6 @@ async def get_menu_for_outlet(
             franchise=request.state.franchise, outlet_slug=outlet_slug
         )
     )
-
-
-@end_user_router.get(
-    "/menu/{outlet_slug}/search/contextual",
-    summary="Search Menu Items Contextually",
-    description="""Search for menu items in a specific outlet contextually by slug.""",
-    dependencies=[Depends(franchise_exists)]
-)
-@limiter.limit("10/minute")
-async def search_menu_items_contextually(
-    request: Request,
-    outlet_slug: str = Path(..., description="Slug of the outlet"),
-    query: str = Query(..., description="Search query"),
-    service: UserRestaurantService = Depends(UserRestaurantService),
-) -> BaseResponse[MenuItemsContextualSearchResponse]:
-    return BaseResponse(
-        data=await service.search_menu_items_contextually(
-            outlet_slug=outlet_slug, query=query
-        )
-    )
-
 
 # Admin router
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
@@ -191,6 +190,8 @@ async def get_franchise(
     )
 
 
+from fastapi import Form, UploadFile, File
+
 @router.post(
     "/outlet",
     summary="Create Outlet",
@@ -198,15 +199,51 @@ async def get_franchise(
     Create a new outlet for a given franchise.
 
     Requires the user to be the admin of the franchise.
+    Accepts multipart/form-data with optional cover image and multiple mid page slider images.
     """,
 )
 async def create_outlet(
-    data: OutletCreationRequest,
+    name: str = Form(..., description="Name of the outlet"),
+    cover_image: UploadFile = File(None, description="Cover image for the outlet (optional)"),
+    mid_page_slider: list[UploadFile] = File(None, description="Mid page slider images (optional, multiple)"),
     service: RestaurantService = Depends(RestaurantService),
     franchise=Depends(is_franchise_admin),
 ) -> BaseResponse[OutletCreationResponse]:
+    cover_image_file = None
+    slider_image_files = []
+    if cover_image is not None and cover_image.filename:
+        if not cover_image.content_type or not cover_image.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cover image must be an image file"
+            )
+        if cover_image.size and cover_image.size > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cover image file too large. Maximum size is 5MB.",
+            )
+        cover_image_file = ContentFile(await cover_image.read(), name=cover_image.filename)
+    if mid_page_slider:
+        for idx, slider_image in enumerate(mid_page_slider):
+            if slider_image is not None and slider_image.filename:
+                if not slider_image.content_type or not slider_image.content_type.startswith("image/"):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST, detail=f"Slider image {idx+1} must be an image file"
+                    )
+                if slider_image.size and slider_image.size > 5 * 1024 * 1024:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Slider image {idx+1} file too large. Maximum size is 5MB.",
+                    )
+                slider_image_files.append(ContentFile(await slider_image.read(), name=slider_image.filename))
+
+    request_data = OutletCreationRequest(name=name)
     return BaseResponse(
-        data=await service.create_outlet(body=data, franchise=franchise)
+        data=await service.create_outlet(
+            body=request_data,
+            franchise=franchise,
+            cover_image=cover_image_file,
+            mid_page_slider=slider_image_files,
+        )
     )
 
 

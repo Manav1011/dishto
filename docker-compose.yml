@@ -10,14 +10,17 @@ services:
     env_file:
       - .env
     ports:
-      - "8080:8080"
+      - "10008:8080"
     depends_on:
       - postgres
       - qdrant
       - redis    
     networks:
       - dishto-net
-    command: python manage.py runuvicorn 0.0.0.0:8080
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runuvicorn 0.0.0.0:8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/protected/healthcheck" ]
       interval: 30s
@@ -86,6 +89,9 @@ services:
     image: qdrant/qdrant
     container_name: dishto_qdrant
     restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
     environment:
       - QDRANT_ALLOW_ORIGIN=*
     volumes:

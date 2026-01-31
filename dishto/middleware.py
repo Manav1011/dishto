@@ -81,7 +81,8 @@ class FranchiseMiddleware:
         host = headers.get(b"host", b"").decode("latin-1").split(":")[0]  # remove port if present
         parts = host.split(".")        
         subdomain = parts[0] if len(parts) > 2 else None
-        scope.setdefault("state", {})                         
+        scope.setdefault("state", {})        
+        print(subdomain)
         if subdomain is not None:
             if subdomain != '192':
                 try:
