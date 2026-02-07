@@ -51,6 +51,7 @@ from .dependencies import franchise_exists, is_franchise_admin, is_outlet_admin
 from .utils import generate_menu_item_image
 from core.utils.limiters import limiter
 from slowapi.util import get_remote_address
+from fastapi import Form, UploadFile, File
 
 # User Side Router - No Authentication Required
 end_user_router = APIRouter(tags=["End User"])
@@ -186,9 +187,6 @@ async def get_franchise(
             slug=slug, limit=limit, last_seen_id=last_seen_id
         )
     )
-
-
-from fastapi import Form, UploadFile, File
 
 @router.post(
     "/outlet",

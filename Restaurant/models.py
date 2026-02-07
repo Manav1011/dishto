@@ -59,7 +59,7 @@ class CategoryImage(TimeStampedModel):
 
 class MenuCategory(TimeStampedModel):
     name = models.CharField(max_length=100)
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE)
+    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE, related_name='outlet_categories')
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)

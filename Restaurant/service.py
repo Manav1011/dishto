@@ -33,6 +33,7 @@ from core.utils.asyncs import get_related_object, get_queryset
 from .utils import enhance_menu_item_description_with_ai, return_matching_menu_items, generate_menu_category_image
 from django.contrib.postgres.search import SearchQuery
 from django.db import transaction
+from django.db.models import Prefetch
 
 class RestaurantService:
     async def create_franchise(self, body: FranchiseCreationRequest):
@@ -694,46 +695,50 @@ class MenuService:
 
 class UserRestaurantService:
     async def get_user_outlets(self, franchise) -> OutletObjectsUser:
-        try:
-            outlets = await get_queryset(
-                list,
-                franchise.outlet_set.all()
-            )
-            from .models import OutletSliderImage
-            from .response import OutletSliderImageObject, OutletObject
+        try:            
             outlet_objs = []
-            for o in outlets:
-                slider_imgs = await get_queryset(list, OutletSliderImage.objects.filter(outlet=o).order_by("order"))
-                slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_imgs] if slider_imgs else None
+            slider_prefetch = Prefetch("slider_images",queryset=OutletSliderImage.objects.order_by("order"))
+            async for o in Outlet.objects.prefetch_related(slider_prefetch).filter(franchise=franchise):                
+                slider_images = []
+                async for img in o.slider_images.all():
+                    slider_images.append(OutletSliderImageObject(image=img.image.url, order=img.order))
                 outlet_objs.append(
                     OutletObject(
                         name=o.name,
                         slug=str(o.slug) if o.slug else "",
                         cover_image=o.cover_image.url if o.cover_image else None,
-                        mid_page_slider=slider_response
+                        mid_page_slider=slider_images if slider_images else None
                     )
                 )
             return OutletObjectsUser(
                 outlets=outlet_objs
             )
-        except Exception as e:
+        except Exception as e:            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve user outlets: {str(e)}"
             )
             
-    async def get_menu_categories_for_outlet(self, franchise, outlet_slug: str) -> MenuCategoryObjects:
+    async def get_menu_categories_for_outlet(
+        self,
+        franchise,
+        outlet_slug: str
+    ) -> MenuCategoryObjects:
         try:
             outlet = await franchise.outlet_set.aget(slug=outlet_slug)
-            categories = await get_queryset(
-                list,
-                MenuCategory.objects.filter(outlet=outlet).order_by("display_order")
-            )
+
             categories_objs = []
-            last_seen_order = categories[-1].display_order if categories else None
-            for c in categories:
-                img_obj = await get_related_object(c, "image")
-                image_url = img_obj.image.url if img_obj else None
+            last_seen_order = None
+
+            async for c in (
+                MenuCategory.objects
+                .filter(outlet=outlet)
+                .select_related("image")
+                .order_by("display_order")
+            ):
+                image_url = c.image.image.url if c.image else None
+                last_seen_order = c.display_order
+
                 categories_objs.append(
                     MenuCategoryObject(
                         name=c.name,
@@ -743,10 +748,12 @@ class UserRestaurantService:
                         slug=c.slug
                     )
                 )
+
             return MenuCategoryObjects(
                 last_seen_order=last_seen_order,
                 categories=categories_objs
             )
+
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -757,16 +764,25 @@ class UserRestaurantService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve categories for outlet: {str(e)}"
             )
+
             
-    async def get_menu_for_outlet(self, franchise, outlet_slug: str) -> MenuItemObjectsUser:
+    async def get_menu_for_outlet(
+        self,
+        franchise,
+        outlet_slug: str
+    ) -> MenuItemObjectsUser:
         try:
             outlet = await franchise.outlet_set.aget(slug=outlet_slug)
-            items = await get_queryset(
-                list,
-                MenuItem.objects.filter(category__outlet=outlet).order_by("category__display_order", "display_order")
-            )
-            return MenuItemObjectsUser(
-                items=[
+
+            items_objs = []
+
+            async for item in (
+                MenuItem.objects
+                .filter(category__outlet=outlet)
+                .select_related("category")
+                .order_by("category__display_order", "display_order")
+            ):
+                items_objs.append(
                     MenuItemObject(
                         name=item.name,
                         description=item.description or "",
@@ -774,10 +790,12 @@ class UserRestaurantService:
                         is_available=item.is_available,
                         image=item.image.url if item.image else None,
                         slug=item.slug,
-                        category_slug=(await get_related_object(item, "category")).slug
-                    ) for item in items
-                ]
-            )
+                        category_slug=item.category.slug
+                    )
+                )
+
+            return MenuItemObjectsUser(items=items_objs)
+
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -788,18 +806,32 @@ class UserRestaurantService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve menu for outlet: {str(e)}"
             )
+
             
-    async def get_menu_items_for_category(self, franchise, outlet_slug: str, category_slug: str, slug: str) -> MenuItemObjectsUser | MenuItemObject:
+    async def get_menu_items_for_category(
+        self,
+        franchise,
+        outlet_slug: str,
+        category_slug: str,
+        slug: str
+    ) -> MenuItemObjectsUser | MenuItemObject:
         try:
             outlet = await franchise.outlet_set.aget(slug=outlet_slug)
-            category = await MenuCategory.objects.aget(slug=category_slug, outlet=outlet)
+
+            category = await MenuCategory.objects.aget(
+                slug=category_slug,
+                outlet=outlet
+            )
+
             if slug == "__all__":
-                items = await get_queryset(
-                    list,
-                    MenuItem.objects.filter(category=category).order_by("display_order")
-                )
-                return MenuItemObjectsUser(
-                    items=[
+                items_objs = []
+
+                async for item in (
+                    MenuItem.objects
+                    .filter(category=category)                    
+                    .order_by("display_order")
+                ):
+                    items_objs.append(
                         MenuItemObject(
                             name=item.name,
                             description=item.description or "",
@@ -807,19 +839,27 @@ class UserRestaurantService:
                             is_available=item.is_available,
                             image=item.image.url if item.image else None,
                             slug=item.slug
-                        ) for item in items
-                    ]
-                )
-            else:
-                item = await MenuItem.objects.aget(slug=slug, category=category)
-                return MenuItemObject(
-                        name=item.name,
-                        description=item.description or "",
-                        price=float(item.price),
-                        is_available=item.is_available,
-                        image=item.image.url if item.image else None,
-                        slug=item.slug
+                        )
                     )
+
+                return MenuItemObjectsUser(items=items_objs)
+
+            else:
+                item = await (
+                    MenuItem.objects
+                    .select_related("image")     # ✅ safe even for single item
+                    .aget(slug=slug, category=category)
+                )
+
+                return MenuItemObject(
+                    name=item.name,
+                    description=item.description or "",
+                    price=float(item.price),
+                    is_available=item.is_available,
+                    image=item.image.url if item.image else None,
+                    slug=item.slug
+                )
+
         except Outlet.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -830,11 +870,17 @@ class UserRestaurantService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Menu category not found."
             )
+        except MenuItem.DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Menu item not found."
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve menu items for category: {str(e)}"
             )
+
             
     async def search_menu_items_contextually(self, outlet_slug:str, query: str) -> MenuItemsContextualSearchResponse:
         try:            

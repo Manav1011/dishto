@@ -40,13 +40,17 @@ def get_fastapi_application() -> FastAPI:
 
     setup_middleware(fastapi_app)
     
-    from scalar_fastapi import get_scalar_api_reference
+    from scalar_fastapi import get_scalar_api_reference, Theme
 
     @fastapi_app.get("/scalar-docs", include_in_schema=False)
     async def scalar_docs():
         return get_scalar_api_reference(
             openapi_url="/openapi.json",
             title="My API Docs",
+            theme=Theme.MARS,            
+            persist_auth=True,
+            telemetry=True,
+            expand_all_responses=True,
         )
     fastapi_app.include_router(base_router_open, responses={422: {"model": BaseValidationResponse}})
     fastapi_app.include_router(base_router_protected, responses={422: {"model": BaseValidationResponse}})

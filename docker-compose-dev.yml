@@ -8,7 +8,7 @@ services:
     container_name: dishto_celery
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - qdrant
       - postgres
@@ -27,10 +27,8 @@ services:
     image: postgres:15
     container_name: dishto_postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${PG_DB}
-      POSTGRES_USER: ${PG_USER}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    env_file:
+      - .env.docker
     ports:
       - "5432:5432"
     volumes:
