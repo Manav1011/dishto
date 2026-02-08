@@ -1,7 +1,7 @@
 from django.db import models
 from core.models import TimeStampedModel
-from Inventory.models import Order
-from Menu.models import Outlet
+from Ordering.models import Order
+from core.models import Outlet
 from dishto.GlobalUtils import generate_unique_hash
 
 # Create your models here.

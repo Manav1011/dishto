@@ -22,8 +22,7 @@ from .response import (
     UserInfoResponse
 )
 
-from core.dependencies import is_superadmin
-from Menu.dependencies import is_franchise_admin
+from core.dependencies import is_superadmin, is_franchise_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

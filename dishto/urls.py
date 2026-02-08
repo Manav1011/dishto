@@ -20,8 +20,9 @@ from django.urls import path
 from fastapi import APIRouter
 from .views import root, healthcheck
 from Menu.views import router as menu_router
-from Menu.views import end_user_router
+from core.views import end_user_router, restaurant_router
 from Inventory.views import inventory_router
+from Ordering.views import ordering_router
 from Profile.views import router as profile_router
 from django.conf import settings
 from django.conf.urls.static import static
@@ -45,8 +46,12 @@ base_router_protected.add_api_route(
     "/healthcheck", healthcheck, methods=["GET"], name="healthcheck"
 )
 # restaurant urls
+base_router_protected.include_router(restaurant_router)
+# menu urls
 base_router_protected.include_router(menu_router)
 # profile urls
 base_router_protected.include_router(profile_router)
 # inventory urls
 base_router_protected.include_router(inventory_router)
+# ordering urls
+base_router_protected.include_router(ordering_router)

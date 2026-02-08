@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'Profile',
     'Menu',
     'Inventory',
+    'Ordering',
     'Analysis'
 ]
 

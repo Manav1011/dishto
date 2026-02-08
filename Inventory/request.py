@@ -39,11 +39,3 @@ class InventoryTransactionUpdateRequest(BaseModel):
     transaction_type: Optional[str] = None
     quantity: Optional[float] = None
     note: Optional[str] = None
-
-class OrderItemCreateRequest(BaseModel):
-    item_slug: Annotated[str, Field(min_length=1)]
-    quantity: int
-
-class OrderCreateRequest(BaseModel):    
-    special_instructions: Optional[str] = None
-    items: List[OrderItemCreateRequest]

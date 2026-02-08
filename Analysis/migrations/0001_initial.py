@@ -23,8 +23,8 @@ class Migration(migrations.Migration):
                 ('month', models.PositiveSmallIntegerField(help_text='Month number (1-12)')),
                 ('year', models.PositiveSmallIntegerField(help_text='Year of the billing cycle')),
                 ('slug', models.SlugField(blank=True, null=True, unique=True)),
-                ('orders', models.ManyToManyField(related_name='billing_cycles', to='Inventory.order')),
-                ('outlet', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='Menu.outlet')),
+                ('orders', models.ManyToManyField(related_name='billing_cycles', to='Ordering.order')),
+                ('outlet', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='core.outlet')),
             ],
             options={
                 'verbose_name': 'Monthly Billing Cycle',
