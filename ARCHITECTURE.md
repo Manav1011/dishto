@@ -34,21 +34,27 @@ The overall architecture consists of the following components:
 
 The project is organized into several Django apps, each with a specific responsibility:
 
-*   `core`: Provides core functionalities and utilities shared across the project.
+*   `core`: Provides core functionalities, shared utilities, and handles Franchise and Outlet management.
 *   `dishto`: The main project directory, containing the settings, URL configurations, and FastAPI setup.
 *   `Profile`: Manages user authentication, profiles, and roles.
-*   `Restaurant`: The core app for managing franchises, outlets, menus, and menu items.
-*   `Inventory`: Handles inventory management, order processing, and stock control.
+*   `Menu`: The core app for managing menu categories and items.
+*   `Inventory`: Handles inventory management, ingredients, recipes, and stock control.
+*   `Ordering`: Processes customer orders.
 *   `Analysis`: Provides functionalities for data analysis and reporting.
 
 ## Module Breakdown
 
 ### `core`
 
-The `core` app provides foundational functionalities for the project.
+The `core` app provides foundational functionalities for the project, including the management of Franchises and Outlets.
 
 *   **Models:**
     *   `TimeStampedModel`: An abstract model that adds `created_at` and `updated_at` fields to other models.
+    *   `Franchise`: Represents a franchise.
+    *   `Outlet`: An outlet belonging to a franchise.
+*   **API Endpoints (FastAPI):**
+    *   `/restaurant/franchise`: CRUD operations for franchises (Superadmin only).
+    *   `/restaurant/outlet`: CRUD operations for outlets (Franchise Admin only).
 *   **FastAPI Integration:**
     *   `schema.py`: Defines base Pydantic models for standardized API responses.
     *   `dependencies.py`: Includes FastAPI dependencies for authorization, such as `is_superadmin`.
@@ -72,13 +78,11 @@ The `Profile` app handles user authentication and management.
     *   `/auth/admin/franchise`: Creates a new franchise admin.
     *   `/auth/admin/outlet`: Creates a new outlet admin.
 
-### `Restaurant`
+### `Menu`
 
-The `Restaurant` app is the heart of the application, managing all restaurant-related data.
+The `Menu` app is the heart of the application, managing all menu-related data.
 
 *   **Models:**
-    *   `Franchise`: Represents a franchise.
-    *   `Outlet`: An outlet belonging to a franchise.
     *   `MenuCategory`: A category of menu items.
     *   `MenuItem`: A specific item on the menu.
     *   `Offers`: Special offers for menu items.
@@ -89,10 +93,8 @@ The `Restaurant` app is the heart of the application, managing all restaurant-re
         *   `/menu/{outlet_slug}/search/contextual`: Contextual search for menu items.
         *   `/menu/{outlet_slug}`: Get the full menu for an outlet.
     *   **Admin Endpoints (Protected):**
-        *   `/restaurant/franchise`: CRUD operations for franchises.
-        *   `/restaurant/outlet`: CRUD operations for outlets.
-        *   `/restaurant/{outlet_slug}/categories`: CRUD operations for menu categories.
-        *   `/restaurant/{outlet_slug}/items`: CRUD operations for menu items.
+        *   `/menu/{outlet_slug}/categories`: CRUD operations for menu categories.
+        *   `/menu/{outlet_slug}/items`: CRUD operations for menu items.
 *   **AI Features:**
     *   Asynchronous generation of embeddings for menu items for contextual search.
     *   AI-powered enhancement of menu item descriptions.
@@ -100,19 +102,26 @@ The `Restaurant` app is the heart of the application, managing all restaurant-re
 
 ### `Inventory`
 
-The `Inventory` app manages inventory, orders, and stock levels.
+The `Inventory` app manages inventory, recipes, and stock levels.
 
 *   **Models:**
     *   `Ingredient`: An ingredient used in menu items.
-    *   `MenuItemIngredient`: Maps ingredients to menu items with quantities.
-    *   `InventoryTransaction`: Tracks all changes in ingredient stock.
+    *   `MenuItemIngredient`: Maps ingredients to menu items with quantities (the recipe).
+    *   `InventoryTransaction`: Tracks all changes in ingredient stock (e.g., purchase, wastage).
+*   **API Endpoints (FastAPI):**
+    *   `/{outlet_slug}/ingredients`: CRUD operations for ingredients.
+    *   `/{outlet_slug}/menu_item/ingredient`: Manage the recipe mapping of ingredients to menu items.
+    *   `/{outlet_slug}/transactions`: CRUD operations for inventory transactions.
+
+### `Ordering`
+
+The `Ordering` app handles the creation of customer orders.
+
+*   **Models:**
     *   `Order`: Represents a customer order.
     *   `OrderItem`: An item within an order.
 *   **API Endpoints (FastAPI):**
-    *   `/{outlet_slug}/ingredients`: CRUD operations for ingredients.
-    *   `/{outlet_slug}/menu_item/ingredient`: Manage the mapping of ingredients to menu items.
-    *   `/{outlet_slug}/transactions`: CRUD operations for inventory transactions.
-    *   `/{outlet_slug}/orders`: Create and manage orders.
+    *   `/{outlet_slug}/orders`: Create a new order, which automatically triggers inventory deduction.
 
 ### `Analysis`
 

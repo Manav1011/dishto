@@ -37,18 +37,18 @@ class MenuService:
             )
             # generte image for the category
             image = None
-            try:
-                image = await CategoryImage.objects.aget(category_name=category.name)
-            except CategoryImage.DoesNotExist:
-                # Generate image using AI
-                image_content = await generate_menu_category_image(category.name)
-                if image_content:
-                    image = await CategoryImage.objects.acreate(
-                        category_name=category.name,
-                        image=image_content
-                    )
-                    category.image = image
-                    await category.asave()
+            # try:
+            #     image = await CategoryImage.objects.aget(category_name=category.name)
+            # except CategoryImage.DoesNotExist:
+            #     # Generate image using AI
+            #     image_content = await generate_menu_category_image(category.name)
+            #     if image_content:
+            #         image = await CategoryImage.objects.acreate(
+            #             category_name=category.name,
+            #             image=image_content
+            #         )
+            #         category.image = image
+            await category.asave()
             return MenuCategoryCreationResponse(
                 name=category.name,
                 description=category.description,

@@ -60,6 +60,19 @@ async def is_outlet_admin(request: Request, outlet_slug: str = Path(...)):
         )
     return outlet
 
+async def has_feature(feature_name: str, outlet: Outlet = Depends(is_outlet_admin)):
+    """
+    Dependency to check if the current outlet has a specific feature enabled.
+    Requires the outlet to be determined by a preceding dependency (e.g., is_outlet_admin).
+    Raises HTTPException if the feature is not enabled for the outlet.
+    """
+    if not await outlet.features.filter(name=feature_name).aexists():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Feature '{feature_name}' is not enabled for this outlet."
+        )
+    return True
+
 async def franchise_exists(request: Request):
     """
     Dependency to check if the franchise exists.
