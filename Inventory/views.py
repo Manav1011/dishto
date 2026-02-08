@@ -2,7 +2,7 @@ from django.shortcuts import render
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from core.schema import BaseResponse
 
-from Restaurant.dependencies import is_outlet_admin
+from Menu.dependencies import is_outlet_admin
 from .request import (
     IngredientCreationRequest, IngredientUpdateRequest, IngredientActiveRequest,
     MenuItemIngredientCreateRequest, MenuItemIngredientUpdateRequest, MenuItemIngredientDeleteRequest,
@@ -11,7 +11,7 @@ from .request import (
 from .response import MenuItemIngredientObject, MenuItemIngredientObjects, InventoryTransactionObject, InventoryTransactionObjects, OrderResponse, OrderItemResponse
 from .service import InventoryService
 from .models import Order, OrderItem
-from Restaurant.models import Outlet, MenuItem
+from Menu.models import Outlet, MenuItem
 from dishto.GlobalUtils import generate_unique_hash
 from decimal import Decimal
 from django.db import transaction

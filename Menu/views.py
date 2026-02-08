@@ -13,7 +13,7 @@ from fastapi import (
 from typing import Optional
 import uuid
 
-from Restaurant.response import OutletCreationResponse
+from .response import OutletCreationResponse
 from core.schema import BaseResponse
 
 from .request import (

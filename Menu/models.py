@@ -25,7 +25,7 @@ class Franchise(TimeStampedModel):
 
 class Outlet(TimeStampedModel):
     name = models.CharField(max_length=255)
-    franchise = models.ForeignKey('Restaurant.Franchise', on_delete=models.CASCADE)
+    franchise = models.ForeignKey('Menu.Franchise', on_delete=models.CASCADE)
     admin = models.ForeignKey('Profile.Profile', on_delete=models.SET_NULL,null=True,blank=True)
     slug = models.SlugField(unique=True, null=True, blank=True)
     cover_image = models.ImageField(upload_to='outlet_cover_images/', null=True, blank=True)
@@ -39,7 +39,7 @@ class Outlet(TimeStampedModel):
         return self.name
 
 class OutletSliderImage(TimeStampedModel):
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE, related_name='slider_images')
+    outlet = models.ForeignKey('Menu.Outlet', on_delete=models.CASCADE, related_name='slider_images')
     image = models.ImageField(upload_to='outlet_slider_images/')
     order = models.PositiveIntegerField(default=0)
     slug = models.SlugField(unique=True, null=True, blank=True)
@@ -59,7 +59,7 @@ class CategoryImage(TimeStampedModel):
 
 class MenuCategory(TimeStampedModel):
     name = models.CharField(max_length=100)
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE, related_name='outlet_categories')
+    outlet = models.ForeignKey('Menu.Outlet', on_delete=models.CASCADE, related_name='outlet_categories')
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)
@@ -107,7 +107,7 @@ class Offers(TimeStampedModel):
     
 class MenuItem(TimeStampedModel):
     name = models.CharField(max_length=100)
-    category = models.ForeignKey('Restaurant.MenuCategory', on_delete=models.CASCADE)
+    category = models.ForeignKey('Menu.MenuCategory', on_delete=models.CASCADE)
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_available = models.BooleanField(default=True)
@@ -117,7 +117,7 @@ class MenuItem(TimeStampedModel):
     search_vector = SearchVectorField(blank=True, null=True)
     likes = models.PositiveIntegerField(default=0)
     special_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    offers = models.ManyToManyField('Restaurant.Offers', related_name='menu_items', blank=True)
+    offers = models.ManyToManyField('Menu.Offers', related_name='menu_items', blank=True)
     
     def save(self, *args, **kwargs):
         if not self.slug:

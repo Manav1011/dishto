@@ -24,7 +24,7 @@ services:
       start_period: 20s
 
   postgres:
-    image: postgres:15
+    image: postgres:latest
     container_name: dishto_postgres
     restart: unless-stopped
     env_file:
@@ -32,12 +32,12 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d:ro
     networks:
       - dishto-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${PG_USER} -d $${PG_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d dishto"]
       interval: 30s
       timeout: 10s
       retries: 5

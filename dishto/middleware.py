@@ -4,7 +4,7 @@ from rest_framework_simplejwt.backends import TokenBackend
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, TokenBackendError, TokenBackendExpiredToken
 from django.conf import settings
 from fastapi import HTTPException, Request
-from Restaurant.models import Franchise
+from Menu.models import Franchise
 from starlette.responses import JSONResponse
 from starlette.types import Scope, Receive, Send
 

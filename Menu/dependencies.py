@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request, Path, status
 from core.utils.asyncs import get_related_object
-from Restaurant.models import Outlet
+from Menu.models import Outlet
 
 async def is_franchise_admin(request: Request):
     """

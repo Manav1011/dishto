@@ -1,6 +1,6 @@
 from django.db import models
 from core.models import TimeStampedModel
-from Restaurant.models import MenuItem
+from Menu.models import MenuItem
 from dishto.GlobalUtils import generate_unique_hash
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -10,7 +10,7 @@ from decimal import Decimal
 
 
 class OrderItem(TimeStampedModel):
-    item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE)
+    item = models.ForeignKey('Menu.MenuItem', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     slug = models.SlugField(unique=True, null=True, blank=True)
@@ -32,7 +32,7 @@ class Order(TimeStampedModel):
         ('cancelled', 'Cancelled')
     )
     
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE)    
+    outlet = models.ForeignKey('Menu.Outlet', on_delete=models.CASCADE)    
     order_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -65,7 +65,7 @@ class Ingredient(TimeStampedModel):
     current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     minimum_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_active = models.BooleanField(default=True)
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE)
+    outlet = models.ForeignKey('Menu.Outlet', on_delete=models.CASCADE)
     slug = models.SlugField(unique=True, null=True, blank=True)
 
     class Meta:
@@ -81,7 +81,7 @@ class Ingredient(TimeStampedModel):
 
 class MenuItemIngredient(TimeStampedModel):
     pk = models.CompositePrimaryKey("menu_item", "ingredient")
-    menu_item = models.ForeignKey('Restaurant.MenuItem', on_delete=models.CASCADE, related_name='ingredients')
+    menu_item = models.ForeignKey('Menu.MenuItem', on_delete=models.CASCADE, related_name='ingredients')
     ingredient = models.ForeignKey('Inventory.Ingredient', on_delete=models.CASCADE)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of ingredient per menu item")
     slug = models.SlugField(unique=True, null=True, blank=True)
@@ -114,7 +114,7 @@ class InventoryTransaction(TimeStampedModel):
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.TextField(null=True, blank=True)
-    outlet = models.ForeignKey('Restaurant.Outlet', on_delete=models.CASCADE)
+    outlet = models.ForeignKey('Menu.Outlet', on_delete=models.CASCADE)
     slug = models.SlugField(unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):

@@ -1,7 +1,7 @@
 from .request import IngredientCreationRequest, IngredientUpdateRequest, MenuItemIngredientCreateRequest, MenuItemIngredientUpdateRequest, InventoryTransactionCreateRequest, InventoryTransactionUpdateRequest, OrderCreateRequest
 from .response import IngredientCreationResponse, IngredientObject, IngredientObjects, MenuItemIngredientObject, MenuItemIngredientObjects, InventoryTransactionObject, InventoryTransactionObjects, OrderResponse, OrderItemResponse
 from .models import Ingredient, MenuItemIngredient, InventoryTransaction, Order, OrderItem
-from Restaurant.models import MenuItem, Outlet
+from Menu.models import MenuItem, Outlet
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_queryset, get_related_object
 from dishto.GlobalUtils import generate_unique_hash

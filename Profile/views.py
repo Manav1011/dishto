@@ -23,7 +23,7 @@ from .response import (
 )
 
 from core.dependencies import is_superadmin
-from Restaurant.dependencies import is_franchise_admin
+from Menu.dependencies import is_franchise_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

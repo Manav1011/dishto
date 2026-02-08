@@ -2,7 +2,7 @@ import django
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from fastapi import HTTPException, status
-from Restaurant.models import Franchise, Outlet
+from Menu.models import Franchise, Outlet
 
 from dishto.GlobalUtils import generate_unique_hash
 from core.utils.asyncs import is_valid_async

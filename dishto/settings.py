@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',    
     'core',
     'Profile',
-    'Restaurant',
+    'Menu',
     'Inventory',
     'Analysis'
 ]
