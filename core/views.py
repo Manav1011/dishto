@@ -10,25 +10,30 @@ from fastapi import (
     Query,
     Path,
 )
-from typing import Optional
+from typing import Optional, List
 import uuid
 
-from core.request import OutletCreationRequest, FranchiseCreationRequest
+from core.request import OutletCreationRequest, FranchiseCreationRequest, OutletFeatureRequestCreateRequest, OutletFeatureRequestUpdateRequest
 from core.response import (
     OutletObject,
     OutletObjects,
     FranchiseObject,
     FranchiseObjects,
-    OutletCreationResponse    
+    OutletCreationResponse,    
+    OutletObjectsUser,
+    FeatureResponse, # New
+    OutletFeatureRequestResponse # New
 )
 
-from core.response import OutletObjectsUser
 from core.schema import BaseResponse
-from core.service import RestaurantService
+from core.service import RestaurantService, FeatureService # New FeatureService
 from django.core.files.base import ContentFile
-from core.dependencies import is_superadmin
-from core.dependencies import franchise_exists, is_franchise_admin
+from core.dependencies import is_superadmin, is_outlet_admin, franchise_exists, is_franchise_admin, has_feature # New dependencies
 from core.utils.limiters import limiter
+from django.contrib.auth import get_user_model # New import
+from .models import Outlet # New import for Outlet model
+
+User = get_user_model() # New
 
 
 # Create your views here.
@@ -176,3 +181,88 @@ async def get_outlet(
             last_seen_id=last_seen_id,
         )
     )
+
+
+# --- Feature Management Router ---
+feature_router = APIRouter(prefix="/feature", tags=["Feature Management"])
+
+@feature_router.get(
+    "/available",
+    summary="List available master features",
+    description="Retrieve a list of master features that can be requested by an outlet.",
+    response_model=BaseResponse[List[FeatureResponse]]
+)
+async def list_available_master_features(
+    service: FeatureService = Depends(FeatureService)
+):
+    return BaseResponse(data=await service.list_available_master_features())
+
+
+@feature_router.post(
+    "/outlet/{outlet_slug}/requests/",
+    summary="Create a new feature request for an outlet",
+    description="Outlet admin submits a request to add or remove features.",
+    dependencies=[Depends(is_outlet_admin)],
+    response_model=BaseResponse[OutletFeatureRequestResponse]
+)
+async def create_feature_request(
+    request: Request,
+    request_data: OutletFeatureRequestCreateRequest,
+    outlet: Outlet = Depends(is_outlet_admin), # is_outlet_admin returns the Outlet object
+    service: FeatureService = Depends(FeatureService)
+):
+    requested_by_user = request.state.user
+    return BaseResponse(data=await service.create_feature_request(
+        outlet=outlet,
+        request_data=request_data,
+        requested_by_user=requested_by_user
+    ))
+
+
+@feature_router.get(
+    "/outlet/{outlet_slug}/requests/",
+    summary="List feature requests for an outlet",
+    description="Retrieve all feature requests (pending, approved, rejected) for a specific outlet.",
+    dependencies=[Depends(is_outlet_admin)],
+    response_model=BaseResponse[List[OutletFeatureRequestResponse]]
+)
+async def list_outlet_feature_requests(
+    outlet: Outlet = Depends(is_outlet_admin),
+    service: FeatureService = Depends(FeatureService)
+):
+    return BaseResponse(data=await service.list_outlet_feature_requests(outlet=outlet))
+
+
+@feature_router.get(
+    "/admin/requests/",
+    summary="List all feature requests (Superadmin)",
+    description="Retrieve all feature requests from all outlets. Filterable by status.",
+    dependencies=[Depends(is_superadmin)],
+    response_model=BaseResponse[List[OutletFeatureRequestResponse]]
+)
+async def list_all_feature_requests(
+    status_filter: Optional[str] = Query(None, description="Filter requests by status (pending, approved, rejected)"),
+    service: FeatureService = Depends(FeatureService)
+):
+    return BaseResponse(data=await service.list_all_feature_requests(status_filter=status_filter))
+
+
+@feature_router.patch(
+    "/admin/requests/{request_id}/",
+    summary="Update a feature request (Superadmin)",
+    description="Approve or reject a feature request and optionally set prices for requested features.",
+    dependencies=[Depends(is_superadmin)],
+    response_model=BaseResponse[OutletFeatureRequestResponse]
+)
+async def update_feature_request(
+    request_id: int,
+    update_data: OutletFeatureRequestUpdateRequest,
+    request: Request,
+    service: FeatureService = Depends(FeatureService)
+):
+    approved_by_user = request.state.user
+    return BaseResponse(data=await service.update_feature_request(
+        request_id=request_id,
+        update_data=update_data,
+        approved_by_user=approved_by_user
+    ))

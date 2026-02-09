@@ -1,4 +1,3 @@
-
 from core.response import (    
     OutletObject,    
     OutletObjectsUser,
@@ -6,21 +5,33 @@ from core.response import (
     FranchiseObject,
     FranchiseObjects,    
     OutletCreationResponse,
-    OutletObjects
+    OutletObjects,
+    FeatureResponse, # Will be used for GlobalFeature
+    OutletFeatureRequestResponse,
+    UserResponse,
+    OutletResponse
 )
 
 from core.request import (
     FranchiseCreationRequest,
-    OutletCreationRequest
+    OutletCreationRequest,
+    OutletFeatureRequestCreateRequest,
+    OutletFeatureRequestUpdateRequest,
+    FeaturePriceUpdateRequest
 )
 
-from .models import Franchise, Outlet, OutletSliderImage
+from .models import Franchise, Outlet, OutletSliderImage, GlobalFeature, OutletFeature, OutletFeatureRequest, get_user_model
 from fastapi import HTTPException, status
 from core.utils.asyncs import get_queryset
 from django.db.models import Prefetch
+from django.db import transaction
+from typing import List, Optional
+
+User = get_user_model()
 
 
 class RestaurantService:
+    # ... existing RestaurantService methods ...
     async def create_franchise(self, body: FranchiseCreationRequest):
         try:
             name = body.name
@@ -188,3 +199,112 @@ class RestaurantService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve user outlets: {str(e)}"
             )
+
+
+class FeatureService:
+    async def list_available_master_features(self) -> List[FeatureResponse]:
+        """
+        Lists all GlobalFeature objects. This is the master list of available features.
+        """
+        features = []
+        async for f in GlobalFeature.objects.all():
+            features.append(FeatureResponse(
+                name=f.name,
+                description=f.description,
+                slug=f.slug,
+                price=None # Price is per-subscription, not global
+            ))
+        return features
+
+    async def create_feature_request(self, outlet: Outlet, request_data: OutletFeatureRequestCreateRequest, requested_by_user: User) -> OutletFeatureRequestResponse:
+        async with transaction.aatomic():
+            feature_request = await OutletFeatureRequest.objects.acreate(
+                outlet=outlet,
+                status='pending',
+                request_type=request_data.request_type,
+                requested_by=requested_by_user,
+                note=request_data.note
+            )
+            
+            global_features = await get_queryset(list, GlobalFeature.objects.filter(slug__in=request_data.feature_slugs))
+            if not global_features:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid global features found for the provided slugs.")
+            
+            await feature_request.features.aset(global_features)
+            
+            return await self._get_feature_request_response(feature_request)
+
+    async def _get_feature_request_response(self, feature_request: OutletFeatureRequest) -> OutletFeatureRequestResponse:
+        """
+        Constructs the response for a feature request, showing GLOBAL features in the request
+        and the CURRENT active subscriptions for the outlet.
+        """
+        feature_request = await OutletFeatureRequest.objects.select_related(
+            'outlet', 'requested_by', 'approved_by'
+        ).prefetch_related('features').aget(id=feature_request.id)
+
+        # Features linked to the request are GlobalFeatures
+        requested_global_features = [
+            FeatureResponse(name=f.name, description=f.description, slug=f.slug)
+            async for f in feature_request.features.all()
+        ]
+
+        return OutletFeatureRequestResponse(
+            id=feature_request.id,
+            outlet=OutletResponse(name=feature_request.outlet.name, slug=feature_request.outlet.slug),
+            features=requested_global_features, # Shows what was in the request
+            status=feature_request.status,
+            request_type=feature_request.request_type,
+            requested_by=UserResponse(email=feature_request.requested_by.email) if feature_request.requested_by else None,
+            approved_by=UserResponse(email=feature_request.approved_by.email) if feature_request.approved_by else None,
+            created_at=feature_request.created_at,
+            updated_at=feature_request.updated_at,
+            note=feature_request.note
+        )
+
+    async def list_outlet_feature_requests(self, outlet: Outlet) -> List[OutletFeatureRequestResponse]:
+        feature_requests = []
+        async for fr in OutletFeatureRequest.objects.filter(outlet=outlet).order_by('-created_at'):
+            feature_requests.append(await self._get_feature_request_response(fr))
+        return feature_requests
+
+    async def list_all_feature_requests(self, status_filter: Optional[str] = None) -> List[OutletFeatureRequestResponse]:
+        qs = OutletFeatureRequest.objects.all().order_by('-created_at')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        
+        feature_requests = []
+        async for fr in qs:
+            feature_requests.append(await self._get_feature_request_response(fr))
+        return feature_requests
+
+    async def update_feature_request(self, request_id: int, update_data: OutletFeatureRequestUpdateRequest, approved_by_user: User) -> OutletFeatureRequestResponse:
+        async with transaction.aatomic():
+            try:
+                feature_request = await OutletFeatureRequest.objects.select_related('outlet').aget(id=request_id)
+            except OutletFeatureRequest.DoesNotExist:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature Request not found.")
+
+            if feature_request.status != 'pending':
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending requests can be updated.")
+            
+            feature_request.status = update_data.status
+            feature_request.note = update_data.note
+            feature_request.approved_by = approved_by_user
+            await feature_request.asave() # Triggers the signal
+
+            if feature_request.status == 'approved' and update_data.feature_prices:
+                outlet = feature_request.outlet
+                for price_update in update_data.feature_prices:
+                    try:
+                        subscription = await OutletFeature.objects.aget(
+                            outlet=outlet,
+                            global_feature__slug=price_update.feature_slug
+                        )
+                        subscription.price = price_update.price
+                        await subscription.asave()
+                    except OutletFeature.DoesNotExist:
+                        print(f"Warning: Subscription for '{price_update.feature_slug}' not found for outlet '{outlet.slug}' during price update. Signal might not have run or feature was not in request.")
+                        pass
+
+            return await self._get_feature_request_response(feature_request)

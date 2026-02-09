@@ -20,7 +20,7 @@ from django.urls import path
 from fastapi import APIRouter
 from .views import root, healthcheck
 from Menu.views import router as menu_router
-from core.views import end_user_router, restaurant_router
+from core.views import end_user_router, restaurant_router, feature_router # Added feature_router
 from Inventory.views import inventory_router
 from Ordering.views import ordering_router
 from Profile.views import router as profile_router
@@ -55,3 +55,5 @@ base_router_protected.include_router(profile_router)
 base_router_protected.include_router(inventory_router)
 # ordering urls
 base_router_protected.include_router(ordering_router)
+# feature management urls
+base_router_protected.include_router(feature_router)

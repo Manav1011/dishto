@@ -1,48 +1,64 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Literal
+from datetime import datetime
+from decimal import Decimal
 
-class OutletSliderImageObject(BaseModel):
-    image: str
-    order: int
-
-
-class OutletObject(BaseModel):
-    name: str
-    slug: str
-    cover_image: str | None = None
-    mid_page_slider: list[OutletSliderImageObject] | None = None
-
-class OutletObjectsUser(BaseModel):
-    outlets: list[OutletObject]
-    
+# --- Original Schemas (Reconstructed) ---
 class FranchiseObject(BaseModel):
     name: str
     slug: str
 
 class FranchiseObjects(BaseModel):
-    franchises: list[FranchiseObject]
+    franchises: List[FranchiseObject]
     last_seen_id: Optional[int] = None
-    
-class FranchiseCreationResponse(BaseModel):
-    name: str
-    slug: str
-    
+
 class OutletSliderImageObject(BaseModel):
     image: str
     order: int
+
+class OutletObject(BaseModel):
+    name: str
+    slug: str
+    cover_image: Optional[str] = None
+    mid_page_slider: Optional[List[OutletSliderImageObject]] = None
+
+class OutletObjects(BaseModel):
+    last_seen_id: Optional[int] = None
+    outlets: List[OutletObject]
+
+class OutletObjectsUser(BaseModel):
+    outlets: List[OutletObject]
 
 class OutletCreationResponse(BaseModel):
     name: str
     slug: str
     cover_image: Optional[str] = None
-    mid_page_slider: Optional[list[OutletSliderImageObject]] = None
-    
-class OutletObject(BaseModel):
+    mid_page_slider: Optional[List[OutletSliderImageObject]] = None
+
+# --- New Schemas for Feature Management ---
+class FeatureResponse(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    slug: str
+
+class UserResponse(BaseModel):
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+class OutletResponse(BaseModel): # Moved to be defined before OutletFeatureRequestResponse
     name: str
     slug: str
-    cover_image: Optional[str] = None
-    mid_page_slider: Optional[list[OutletSliderImageObject]] = None
     
-class OutletObjects(BaseModel):
-    last_seen_id: Optional[int] = None
-    outlets: list[OutletObject]
+class OutletFeatureRequestResponse(BaseModel):
+    id: int
+    outlet: OutletResponse
+    features: List[FeatureResponse]
+    status: str
+    request_type: str
+    requested_by: Optional[UserResponse] = None
+    approved_by: Optional[UserResponse] = None
+    created_at: datetime
+    updated_at: datetime
+    note: Optional[str] = None

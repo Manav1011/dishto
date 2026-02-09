@@ -66,6 +66,7 @@ async def has_feature(feature_name: str, outlet: Outlet = Depends(is_outlet_admi
     Requires the outlet to be determined by a preceding dependency (e.g., is_outlet_admin).
     Raises HTTPException if the feature is not enabled for the outlet.
     """
+    # The M2M relation now points to GlobalFeature, so we check its name.
     if not await outlet.features.filter(name=feature_name).aexists():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

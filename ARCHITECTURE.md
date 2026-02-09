@@ -46,18 +46,27 @@ The project is organized into several Django apps, each with a specific responsi
 
 ### `core`
 
-The `core` app provides foundational functionalities for the project, including the management of Franchises and Outlets.
+The `core` app provides foundational functionalities for the project, including the management of Franchises, Outlets, and a new **subscription-based feature management system**.
 
 *   **Models:**
     *   `TimeStampedModel`: An abstract model that adds `created_at` and `updated_at` fields to other models.
     *   `Franchise`: Represents a franchise.
-    *   `Outlet`: An outlet belonging to a franchise.
+    *   `Outlet`: An outlet belonging to a franchise. **Now manages features via `OutletFeature` through `GlobalFeature`.**
+    *   `GlobalFeature`: **A new model that serves as the master list of all available features (e.g., "Menu", "Ordering", "Inventory"). It defines the generic feature.**
+    *   `OutletFeature`: **A new model that represents a specific subscription of an `Outlet` to a `GlobalFeature`. It stores the custom price for that particular outlet's feature subscription.**
+    *   `OutletFeatureRequest`: **A new model to handle requests from Outlet Admins to add or remove features, pending Superadmin approval. Each request points to `GlobalFeature`s.**
+    *   `OutletFeatureHistory`: **Tracks changes in an outlet's approved features, referencing `GlobalFeature`s.**
 *   **API Endpoints (FastAPI):**
     *   `/restaurant/franchise`: CRUD operations for franchises (Superadmin only).
     *   `/restaurant/outlet`: CRUD operations for outlets (Franchise Admin only).
+    *   **/feature/available**: List available master features (public).
+    *   **/feature/outlet/{outlet_slug}/requests**: Create and list feature requests for a specific outlet (Outlet Admin).
+    *   **/feature/admin/requests**: List all feature requests and update (approve/reject/set price) feature requests (Superadmin).
 *   **FastAPI Integration:**
     *   `schema.py`: Defines base Pydantic models for standardized API responses.
-    *   `dependencies.py`: Includes FastAPI dependencies for authorization, such as `is_superadmin`.
+    *   `request.py` and `response.py`: **Now contain specific Pydantic schemas for feature management requests and responses.**
+    *   `dependencies.py`: Includes FastAPI dependencies for authorization, such as `is_superadmin` and the new `has_feature`.
+    *   `service.py`: **Introduces `FeatureService` to handle the business logic for feature management.**
     *   `exceptions.py`: Defines a custom exception handler for the FastAPI app.
     *   `lifespan.py`: Manages the application's lifespan events, including the initialization of the Qdrant collection.
 
