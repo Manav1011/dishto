@@ -41,17 +41,19 @@ class Ingredient(TimeStampedModel):
         return f"{self.name} ({self.current_stock} {self.unit})"
 
 class MenuItemIngredient(TimeStampedModel):
-    pk = models.CompositePrimaryKey("menu_item", "ingredient")
     menu_item = models.ForeignKey('Menu.MenuItem', on_delete=models.CASCADE, related_name='ingredients')
     ingredient = models.ForeignKey('Inventory.Ingredient', on_delete=models.CASCADE)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of ingredient per menu item")
     slug = models.SlugField(unique=True, null=True, blank=True)
-    
+
+    class Meta:
+        unique_together = ("menu_item", "ingredient")
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_hash()
         super(MenuItemIngredient, self).save(*args, **kwargs)
-    
+
     def __str__(self):
         return f"{self.menu_item.name} - {self.ingredient.name} ({self.quantity})"
 
