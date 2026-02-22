@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "rest-api-tester": {
+      "command": "python",
+      "args": [
+        "/home/smartroll/Documents/dishto/mcp/main.py"
+      ]
+    }
+  }
+}
