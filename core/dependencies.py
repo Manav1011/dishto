@@ -60,19 +60,22 @@ async def is_outlet_admin(request: Request, outlet_slug: str = Path(...)):
         )
     return outlet
 
-async def has_feature(feature_name: str, outlet: Outlet = Depends(is_outlet_admin)):
+def require_feature(feature_name: str):
     """
-    Dependency to check if the current outlet has a specific feature enabled.
-    Requires the outlet to be determined by a preceding dependency (e.g., is_outlet_admin).
+    Factory function to create a dependency that checks if the current outlet has a specific feature enabled.
+    This dependency automatically resolves the outlet via `is_outlet_admin`.
     Raises HTTPException if the feature is not enabled for the outlet.
     """
-    # The M2M relation now points to GlobalFeature, so we check its name.
-    if not await outlet.features.filter(name=feature_name).aexists():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Feature '{feature_name}' is not enabled for this outlet."
-        )
-    return True
+    async def _feature_checker(outlet: Outlet = Depends(is_outlet_admin)) -> Outlet:
+        # The M2M relation now points to GlobalFeature, so we check its name.
+        if not await outlet.features.filter(name=feature_name).aexists():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Feature '{feature_name}' is not enabled for this outlet."
+            )
+        return outlet # Return the outlet if the feature is enabled
+
+    return _feature_checker
 
 async def franchise_exists(request: Request):
     """

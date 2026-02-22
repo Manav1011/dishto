@@ -12,8 +12,10 @@ from fastapi import (
 )
 from typing import Optional
 import uuid
+from functools import partial # ADDED: Import partial
 
 from core.schema import BaseResponse
+from core.models import Outlet
 
 from .request import (
     MenuCategoryCreationRequest,
@@ -38,7 +40,7 @@ from .response import (
 from .service import MenuService
 from .models import MenuCategory, MenuItem, CategoryImage
 from django.core.files.base import ContentFile
-from core.dependencies import is_superadmin
+from core.dependencies import is_superadmin, require_feature # CHANGED: from has_feature to require_feature
 from core.dependencies import franchise_exists, is_franchise_admin, is_outlet_admin
 from .utils import generate_menu_item_image
 from core.utils.limiters import limiter
@@ -134,11 +136,12 @@ router = APIRouter(prefix="/menu", tags=["Menu"])
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def create_menu_category(
     data: MenuCategoryCreationRequest,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryCreationResponse]:
     return BaseResponse(
         data=await service.create_menu_category(body=data, outlet=outlet)
@@ -156,10 +159,11 @@ async def create_menu_category(
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def get_menu_category(
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
     slug: str = Query(..., description="Slug of the category to search categories in"),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
     last_seen_order: Optional[int] = Query(
@@ -183,10 +187,11 @@ async def get_menu_category(
     Search for a menu category by slug."
     - ?query=search_term: Search term to filter categories by name or description.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def search_menu_categories(
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
     query: str = Query(
         None, description="Search term to filter categories by name or description"
     ),
@@ -207,12 +212,13 @@ async def search_menu_categories(
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def update_menu_category(
     slug: str,
     data: MenuCategoryUpdateRequest,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryUpdateResponse]:
     return BaseResponse(
         data=await service.update_menu_category(slug=slug, body=data, outlet=outlet)
@@ -227,11 +233,12 @@ async def update_menu_category(
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def delete_menu_category(
     slug: str,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[dict]:
     return BaseResponse(
         data=await service.delete_menu_category(slug=slug, outlet=outlet)
@@ -243,11 +250,12 @@ async def delete_menu_category(
     summary="Rearrange Menu Category Display Order",
     description="""
     Rearrange the display order of menu categories for an outlet.""",
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def rearrange_menu_category_display_order(
     data: CategoryRearrangementRequest,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuCategoryObjects]:
     return BaseResponse(
         data=await service.rearrange_menu_category_display_order(
@@ -266,6 +274,7 @@ async def rearrange_menu_category_display_order(
 
     Accepts multipart/form-data with image file.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def create_menu_item(
     *,
@@ -276,7 +285,7 @@ async def create_menu_item(
     is_available: bool = Form(True, description="Whether the item is available"),
     image: UploadFile = File(..., description="Image file for the menu item"),
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemCreationResponse]:
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(
@@ -300,7 +309,7 @@ async def create_menu_item(
         is_available=is_available,
     )
     return BaseResponse(
-        data=await service.create_menu_item(body=request_data, image_file=django_file)
+        data=await service.create_menu_item(body=request_data, image_file=django_file, outlet=outlet) # Pass outlet to service
     )
 
 
@@ -314,17 +323,18 @@ async def create_menu_item(
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def create_menu_item_no_image(
     data: MenuItemCreationRequest,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemCreationResponse]:
     django_image = await generate_menu_item_image(
         food_name=data.name, description=data.description
     )
     return BaseResponse(
-        data=await service.create_menu_item(body=data, image_file=django_image)
+        data=await service.create_menu_item(body=data, image_file=django_image, outlet=outlet) # Pass outlet to service
     )
 
 
@@ -336,15 +346,16 @@ async def create_menu_item_no_image(
 
     Requires the user to be the admin of the outlet.    
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def enhance_menu_item_description_with_ai(
     item_name: str = Query(..., description="Name of the menu item"),
     description: str = Query(..., description="Description of the menu item"),
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[str]:
     enhanced_description = await service.enhance_menu_item_description_with_ai(
-        item_name=item_name, description=description
+        item_name=item_name, description=description, outlet=outlet # Pass outlet to service
     )
     return BaseResponse(data=enhanced_description)
 
@@ -360,12 +371,13 @@ async def enhance_menu_item_description_with_ai(
 
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def get_menu_item(
     category_slug: str = Query(..., description="Slug of the menu category"),
     slug: str = Query(..., description="Slug of the menu item"),
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
     limit: Optional[int] = Query(None, description="Maximum number of items to return"),
     last_seen_order: Optional[int] = Query(
         None, description="The last seen item ID for pagination"
@@ -392,6 +404,7 @@ async def get_menu_item(
 
     Accepts multipart/form-data with optional image file.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def update_menu_item(
     category_slug: str,
@@ -408,27 +421,22 @@ async def update_menu_item(
         description="New image file for the menu item (upload empty file to skip image update)",
     ),
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemUpdateResponse]:
-    image_file = None
-    if image and image.filename and image.size > 0:
-        if not image.content_type or not image.content_type.startswith("image/"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image"
-            )
-
-        if image.size and image.size > 5 * 1024 * 1024:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Image file too large. Maximum size is 5MB.",
-            )
-
-        image_content = await image.read()
-        image_file = ContentFile(
-            image_content,
-            name=f"{category_slug}_{slug}_{uuid.uuid4().hex}.{image.filename.split('.')[-1]}",
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image"
         )
 
+    if image.size and image.size > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image file too large. Maximum size is 5MB.",
+        )
+
+    file_content = await image.read()
+
+    django_file = ContentFile(file_content)
     request_data = MenuItemUpdateRequest(
         name=name, description=description, price=price, is_available=is_available
     )
@@ -445,7 +453,8 @@ async def update_menu_item(
 @router.patch(
     "/{outlet_slug}/items/{category_slug}/{slug}/like",
     summary="Like Menu Item",
-    description="""Like a menu item to increase its popularity score."""
+    description="""Like a menu item to increase its popularity score.""",
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 @limiter.limit("1/minute")
 async def like_menu_item(
@@ -453,7 +462,7 @@ async def like_menu_item(
     category_slug: str,
     slug: str,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     """
     Like a menu item to increase its popularity score.
@@ -462,7 +471,7 @@ async def like_menu_item(
     """
     return BaseResponse(
         data=await service.like_menu_item(
-            category_slug=category_slug, slug=slug
+            category_slug=category_slug, slug=slug, outlet=outlet # Pass outlet to service
         )
     )
 
@@ -476,13 +485,14 @@ async def like_menu_item(
 
     Accepts application/json.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def update_menu_item_json(
     category_slug: str,
     slug: str,
     data: MenuItemUpdateRequest,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemUpdateResponse]:
     return BaseResponse(
         data=await service.update_menu_item(
@@ -505,12 +515,13 @@ async def update_menu_item_json(
 
     Accepts multipart/form-data with image file.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def upload_menu_item_image(
     category_slug: str,
     slug: str,
     file: UploadFile = File(..., description="Image file to upload"),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[dict]:
     # Validate image file
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -569,16 +580,17 @@ async def upload_menu_item_image(
     summary="Rearrange Menu Category Display Order",
     description="""
     Rearrange the display order of menu categories for an outlet.""",
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def rearrange_menu_item_display_order(
     data: ItemRearrangementRequest,
     category_slug: str,
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse[MenuItemObjects]:
     return BaseResponse(
         data=await service.rearrange_menu_item_display_order(
-            body=data, category_slug=category_slug
+            body=data, category_slug=category_slug, outlet=outlet # Pass outlet to service
         )
     )
 
@@ -590,10 +602,11 @@ async def rearrange_menu_item_display_order(
     Search for a menu category by slug."
     - ?query=search_term: Search term to filter categories by name or description.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("menu"))], # CHANGED
 )
 async def search_menu_items(
     service: MenuService = Depends(MenuService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
     category_slug: str = Query(
         ..., description="Slug of the category to search menu items in"
     ),
@@ -604,6 +617,6 @@ async def search_menu_items(
 ) -> BaseResponse[MenuItemObjects]:
     return BaseResponse(
         data=await service.search_menu_items(
-            category_slug=category_slug, query=query, limit=limit
+            category_slug=category_slug, query=query, limit=limit, outlet=outlet # Pass outlet to service
         )
     )

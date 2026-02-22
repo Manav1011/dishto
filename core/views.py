@@ -29,7 +29,7 @@ from core.response import (
 from core.schema import BaseResponse
 from core.service import RestaurantService, FeatureService # New FeatureService
 from django.core.files.base import ContentFile
-from core.dependencies import is_superadmin, is_outlet_admin, franchise_exists, is_franchise_admin, has_feature # New dependencies
+from core.dependencies import is_superadmin, is_outlet_admin, franchise_exists, is_franchise_admin
 from core.utils.limiters import limiter
 from django.contrib.auth import get_user_model # New import
 from .models import Outlet # New import for Outlet model

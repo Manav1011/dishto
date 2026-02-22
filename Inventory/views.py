@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from core.schema import BaseResponse
+from core.models import Outlet # ADDED: Import Outlet model
+from functools import partial # ADDED: Import partial
 
-from core.dependencies import is_outlet_admin
+from core.dependencies import is_outlet_admin, require_feature # CHANGED: from has_feature to require_feature
 from .request import (
     IngredientCreationRequest, IngredientUpdateRequest, IngredientActiveRequest,
     MenuItemIngredientCreateRequest, MenuItemIngredientUpdateRequest, MenuItemIngredientDeleteRequest,
@@ -26,11 +28,12 @@ inventory_router = APIRouter(tags=["Inventory"])
     Create a new ingredient for the inventory.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def create_ingredient(
     data: IngredientCreationRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.create_ingredient(body=data, outlet=outlet))
 
@@ -44,11 +47,12 @@ async def create_ingredient(
     - Otherwise, returns the ingredient matching the given slug.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def get_ingredients(    
     slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.get_ingredients(slug=slug, outlet=outlet))
 
@@ -60,12 +64,13 @@ async def get_ingredients(
     Update an ingredient's fields. Only fields provided in the body will be updated.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def update_ingredient(
     slug: str,
     data: IngredientUpdateRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.update_ingredient(slug=slug, body=data, outlet=outlet))
 
@@ -77,11 +82,12 @@ async def update_ingredient(
     Delete an ingredient by slug.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def delete_ingredient(
     slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.delete_ingredient(slug=slug, outlet=outlet))
 
@@ -93,12 +99,13 @@ async def delete_ingredient(
     Activate or deactivate an ingredient.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def set_ingredient_active(
     slug: str,
     data: IngredientActiveRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.set_ingredient_active(slug=slug, is_active=data.is_active, outlet=outlet))
 
@@ -112,11 +119,12 @@ async def set_ingredient_active(
     Get all ingredients for a menu item.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def list_menu_item_ingredients(
     menu_item_slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.list_menu_item_ingredients(menu_item_slug=menu_item_slug, outlet=outlet))
 
@@ -127,11 +135,12 @@ async def list_menu_item_ingredients(
     Link an ingredient and quantity to a menu item.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def add_menu_item_ingredient(
     data: MenuItemIngredientCreateRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.add_menu_item_ingredient(body=data, outlet=outlet))
 
@@ -142,12 +151,13 @@ async def add_menu_item_ingredient(
     Edit ingredient mapping for a menu item.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def update_menu_item_ingredient(
     slug: str,
     data: MenuItemIngredientUpdateRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.update_menu_item_ingredient(slug=slug, body=data, outlet=outlet))
 
@@ -158,11 +168,12 @@ async def update_menu_item_ingredient(
     Remove ingredient mapping for a menu item.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def delete_menu_item_ingredient(
     slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.delete_menu_item_ingredient(slug=slug, outlet=outlet))
 
@@ -176,10 +187,11 @@ async def delete_menu_item_ingredient(
     List all inventory transactions for an outlet.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def list_transactions_for_outlet(
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.list_transactions_for_outlet(outlet=outlet))
 
@@ -190,11 +202,12 @@ async def list_transactions_for_outlet(
     List all inventory transactions for an ingredient.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def list_transactions_for_ingredient(
     ingredient_slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.list_transactions_for_ingredient(ingredient_slug=ingredient_slug, outlet=outlet))
 
@@ -205,11 +218,12 @@ async def list_transactions_for_ingredient(
     Add a new inventory transaction (purchase, usage, wastage, adjustment).
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def create_transaction(
     data: InventoryTransactionCreateRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.create_transaction(body=data, outlet=outlet))
 
@@ -220,11 +234,12 @@ async def create_transaction(
     Retrieve details for a specific inventory transaction.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def get_transaction_details(
     slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.get_transaction_details(slug=slug, outlet=outlet))
 
@@ -235,12 +250,13 @@ async def get_transaction_details(
     Update an inventory transaction. Only fields provided in the body will be updated.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def update_transaction(
     slug: str,
     data: InventoryTransactionUpdateRequest,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.update_transaction(slug=slug, body=data, outlet=outlet))
 
@@ -251,11 +267,11 @@ async def update_transaction(
     Delete an inventory transaction by slug.
     Requires the user to be the admin of the outlet.
     """,
+    dependencies=[Depends(is_outlet_admin), Depends(require_feature("inventory"))], # CHANGED
 )
 async def delete_transaction(
     slug: str,
     service: InventoryService = Depends(InventoryService),
-    outlet=Depends(is_outlet_admin),
+    outlet: Outlet = Depends(is_outlet_admin),
 ) -> BaseResponse:
     return BaseResponse(data=await service.delete_transaction(slug=slug, outlet=outlet))
-
