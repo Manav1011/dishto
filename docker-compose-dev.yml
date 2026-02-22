@@ -32,8 +32,7 @@ services:
     ports:
       - "54321:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
-      - ${INIT_PATH:-./init}:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql      
     networks:
       - dishto-net
     healthcheck:
