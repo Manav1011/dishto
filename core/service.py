@@ -9,7 +9,8 @@ from core.response import (
     FeatureResponse, # Will be used for GlobalFeature
     OutletFeatureRequestResponse,
     UserResponse,
-    OutletResponse
+    OutletResponse,
+    OutletActiveFeatureResponse
 )
 
 from core.request import (
@@ -26,6 +27,7 @@ from core.utils.asyncs import get_queryset
 from django.db.models import Prefetch
 from django.db import transaction
 from typing import List, Optional
+from asgiref.sync import sync_to_async
 
 User = get_user_model()
 
@@ -216,23 +218,55 @@ class FeatureService:
             ))
         return features
 
+    async def list_outlet_active_features(self, outlet: Outlet) -> List[OutletActiveFeatureResponse]:
+        """
+        Lists all active features for a specific outlet, including their custom prices.
+        """
+        active_features = []
+        # Query OutletFeature directly as it contains the price and links to GlobalFeature
+        async for of in OutletFeature.objects.filter(outlet=outlet).select_related('global_feature'):
+            active_features.append(OutletActiveFeatureResponse(
+                name=of.global_feature.name,
+                description=of.global_feature.description,
+                price=of.price,
+                slug=of.global_feature.slug
+            ))
+        return active_features
+
     async def create_feature_request(self, outlet: Outlet, request_data: OutletFeatureRequestCreateRequest, requested_by_user: User) -> OutletFeatureRequestResponse:
-        async with transaction.aatomic():
-            feature_request = await OutletFeatureRequest.objects.acreate(
+        global_features = await get_queryset(list, GlobalFeature.objects.filter(slug__in=request_data.feature_slugs))
+        if not global_features:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid global features found for the provided slugs.")
+        
+        # Get currently active features for the outlet
+        active_outlet_features = await get_queryset(list, OutletFeature.objects.filter(outlet=outlet).select_related('global_feature'))
+        active_feature_slugs = {of.global_feature.slug for of in active_outlet_features}
+
+        for requested_slug in request_data.feature_slugs:
+            if request_data.request_type == 'add':
+                if requested_slug in active_feature_slugs:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Feature '{requested_slug}' is already enabled for this outlet.")
+            elif request_data.request_type == 'remove':
+                if requested_slug not in active_feature_slugs:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Feature '{requested_slug}' is not currently enabled for this outlet.")
+
+        feature_request = await sync_to_async(self._perform_create_feature_request_sync)(
+            outlet, request_data, requested_by_user, global_features
+        )
+            
+        return await self._get_feature_request_response(feature_request)
+
+    def _perform_create_feature_request_sync(self, outlet: Outlet, request_data: OutletFeatureRequestCreateRequest, requested_by_user: User, global_features: List[GlobalFeature]) -> OutletFeatureRequest:
+        with transaction.atomic():
+            feature_request = OutletFeatureRequest.objects.create(
                 outlet=outlet,
                 status='pending',
                 request_type=request_data.request_type,
                 requested_by=requested_by_user,
                 note=request_data.note
             )
-            
-            global_features = await get_queryset(list, GlobalFeature.objects.filter(slug__in=request_data.feature_slugs))
-            if not global_features:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No valid global features found for the provided slugs.")
-            
-            await feature_request.features.aset(global_features)
-            
-            return await self._get_feature_request_response(feature_request)
+            feature_request.features.set(global_features)
+            return feature_request
 
     async def _get_feature_request_response(self, feature_request: OutletFeatureRequest) -> OutletFeatureRequestResponse:
         """
@@ -279,32 +313,38 @@ class FeatureService:
         return feature_requests
 
     async def update_feature_request(self, request_id: int, update_data: OutletFeatureRequestUpdateRequest, approved_by_user: User) -> OutletFeatureRequestResponse:
-        async with transaction.aatomic():
-            try:
-                feature_request = await OutletFeatureRequest.objects.select_related('outlet').aget(id=request_id)
-            except OutletFeatureRequest.DoesNotExist:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature Request not found.")
+        try:
+            feature_request = await OutletFeatureRequest.objects.select_related('outlet').aget(id=request_id)
+        except OutletFeatureRequest.DoesNotExist:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature Request not found.")
 
-            if feature_request.status != 'pending':
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending requests can be updated.")
-            
+        if feature_request.status != 'pending':
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending requests can be updated.")
+        
+        updated_feature_request = await sync_to_async(self._perform_update_feature_request_sync)(
+            feature_request, update_data, approved_by_user
+        )
+
+        return await self._get_feature_request_response(updated_feature_request)
+
+    def _perform_update_feature_request_sync(self, feature_request: OutletFeatureRequest, update_data: OutletFeatureRequestUpdateRequest, approved_by_user: User) -> OutletFeatureRequest:
+        with transaction.atomic():
             feature_request.status = update_data.status
             feature_request.note = update_data.note
             feature_request.approved_by = approved_by_user
-            await feature_request.asave() # Triggers the signal
+            feature_request.save() # Triggers the signal
 
             if feature_request.status == 'approved' and update_data.feature_prices:
                 outlet = feature_request.outlet
                 for price_update in update_data.feature_prices:
                     try:
-                        subscription = await OutletFeature.objects.aget(
+                        subscription = OutletFeature.objects.get( # Synchronous get
                             outlet=outlet,
                             global_feature__slug=price_update.feature_slug
                         )
                         subscription.price = price_update.price
-                        await subscription.asave()
+                        subscription.save() # Synchronous save
                     except OutletFeature.DoesNotExist:
                         print(f"Warning: Subscription for '{price_update.feature_slug}' not found for outlet '{outlet.slug}' during price update. Signal might not have run or feature was not in request.")
                         pass
-
-            return await self._get_feature_request_response(feature_request)
+            return feature_request

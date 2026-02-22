@@ -22,7 +22,8 @@ from core.response import (
     OutletCreationResponse,    
     OutletObjectsUser,
     FeatureResponse, # New
-    OutletFeatureRequestResponse # New
+    OutletFeatureRequestResponse, # New
+    OutletActiveFeatureResponse # New
 )
 
 from core.schema import BaseResponse
@@ -232,6 +233,18 @@ async def list_outlet_feature_requests(
 ):
     return BaseResponse(data=await service.list_outlet_feature_requests(outlet=outlet))
 
+@feature_router.get(
+    "/outlet/{outlet_slug}/active-features",
+    summary="List active features for an outlet",
+    description="Retrieve a list of features currently enabled for a specific outlet, including their custom prices.",
+    dependencies=[Depends(is_outlet_admin)],
+    response_model=BaseResponse[List[OutletActiveFeatureResponse]]
+)
+async def list_outlet_active_features(
+    outlet: Outlet = Depends(is_outlet_admin),
+    service: FeatureService = Depends(FeatureService)
+):
+    return BaseResponse(data=await service.list_outlet_active_features(outlet=outlet))
 
 @feature_router.get(
     "/admin/requests/",

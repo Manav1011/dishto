@@ -62,3 +62,9 @@ class OutletFeatureRequestResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     note: Optional[str] = None
+
+class OutletActiveFeatureResponse(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: Decimal = Field(..., description="The custom price for this feature for the specific outlet.")
+    slug: str
