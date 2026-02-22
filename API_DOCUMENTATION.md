@@ -2,6 +2,15 @@
 
 This document provides a detailed reference for the available API endpoints in the Dishto platform. The APIs are organized by module.
 
+## ⚠️ Important: Feature-Based Access Control
+
+Many protected API endpoints in Dishto are subject to **feature-based access control**. This means an authenticated Outlet Admin can only access functionalities (like managing the menu, inventory, or orders) if their outlet has an active subscription to the corresponding feature.
+
+*   **Access Denied:** Attempts to access endpoints for features that are not enabled for an outlet will result in a `403 Forbidden` HTTP status code.
+*   **Feature Management:** Outlet Admins can request to add or remove features, which must then be approved by a Superadmin. Superadmins also set the custom pricing for each feature subscription.
+
+---
+
 ## 🔒 Authentication & Profile Module
 **Base URL:** `/api/protected/auth`
 
@@ -35,6 +44,31 @@ These endpoints handle user authentication using JWT stored in secure cookies, a
 
 ---
 
+## ✨ Feature Management Module
+**Base URL:** `/api/protected/feature`
+
+This module provides endpoints for managing feature subscriptions for outlets.
+
+*   **GET** `/available`
+    *   **Description:** Retrieve a list of all master features available in the system.
+*   **GET** `/outlet/{outlet_slug}/active-features`
+    *   **Access:** Outlet Admin only.
+    *   **Description:** List all features currently enabled for the specified outlet, including their custom subscription prices.
+*   **POST** `/outlet/{outlet_slug}/requests`
+    *   **Access:** Outlet Admin only.
+    *   **Description:** Submit a request to add or remove a feature for the specified outlet. Requests enter a 'pending' state.
+*   **GET** `/outlet/{outlet_slug}/requests`
+    *   **Access:** Outlet Admin only.
+    *   **Description:** Retrieve all feature requests (pending, approved, rejected) made for the specified outlet.
+*   **GET** `/admin/requests`
+    *   **Access:** Superadmin only.
+    *   **Description:** List all feature requests across all outlets. Can be filtered by status (e.g., 'pending').
+*   **PATCH** `/admin/requests/{request_id}`
+    *   **Access:** Superadmin only.
+    *   **Description:** Approve or reject a specific feature request. When approving, the Superadmin can optionally set custom prices for the requested features.
+
+---
+
 ## 🍽️ Restaurant & Menu Management Module
 This module manages the core business hierarchy (Franchises, Outlets) and the Menu (Categories, Items).
 
@@ -52,6 +86,7 @@ This module manages the core business hierarchy (Franchises, Outlets) and the Me
 
 ### Menu Management
 **Base URL:** `/api/protected/menu`
+**Access:** Requires `menu` feature subscription for the outlet.
 
 *   **POST** `/{outlet_slug}/categories`
     *   **Description:** Create a new menu category (e.g., "Starters", "Mains").
@@ -90,6 +125,7 @@ This module manages the core business hierarchy (Franchises, Outlets) and the Me
 
 ## 📦 Inventory Module
 **Base URL:** `/api/protected/inventory`
+**Access:** Requires `inventory` feature subscription for the outlet.
 
 Manages stock, recipes, and inventory logging.
 
@@ -133,9 +169,10 @@ Manages stock, recipes, and inventory logging.
 
 ## 🧾 Ordering Module
 **Base URL:** `/api/protected/ordering`
+**Access:** Requires `ordering` feature subscription for the outlet.
 
 *   **POST** `/{outlet_slug}/orders`
-    *   **Description:** Create a new customer order. This triggers stock deduction based on the recipes defined in the Inventory module.
+    *   **Description:** Create a new customer order. This endpoint now **conditionally triggers stock deduction** based on the recipes defined in the Inventory module: if the outlet does not have the `inventory` feature enabled, no inventory transactions will be recorded.
 
 ---
 

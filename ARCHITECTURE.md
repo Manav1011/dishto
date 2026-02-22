@@ -65,7 +65,7 @@ The `core` app provides foundational functionalities for the project, including 
 *   **FastAPI Integration:**
     *   `schema.py`: Defines base Pydantic models for standardized API responses.
     *   `request.py` and `response.py`: **Now contain specific Pydantic schemas for feature management requests and responses.**
-    *   `dependencies.py`: Includes FastAPI dependencies for authorization, such as `is_superadmin` and the new `has_feature`.
+    *   `dependencies.py`: Includes FastAPI dependencies for authorization, such as `is_superadmin` and the new `require_feature` factory for enforcing subscription-based access control.
     *   `service.py`: **Introduces `FeatureService` to handle the business logic for feature management.**
     *   `exceptions.py`: Defines a custom exception handler for the FastAPI app.
     *   `lifespan.py`: Manages the application's lifespan events, including the initialization of the Qdrant collection.
