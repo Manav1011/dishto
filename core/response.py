@@ -21,12 +21,14 @@ class OutletObject(BaseModel):
     slug: str
     cover_image: Optional[str] = None
     mid_page_slider: Optional[List[OutletSliderImageObject]] = None
+    admin: Optional['UserResponse'] = None # Added for manager context
 
 class OutletObjects(BaseModel):
     last_seen_id: Optional[int] = None
     outlets: List[OutletObject]
 
 class OutletObjectsUser(BaseModel):
+    franchise: FranchiseObject
     outlets: List[OutletObject]
 
 class OutletCreationResponse(BaseModel):

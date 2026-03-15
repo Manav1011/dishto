@@ -131,7 +131,7 @@ class RestaurantService:
     async def get_outlet(self, slug: str, franchise, limit: int | None, last_seen_id: int | None) -> OutletObject | OutletObjects:        
         try:
             if slug == "__all__":
-                queryset = Outlet.objects.filter(franchise=franchise).order_by("id")
+                queryset = Outlet.objects.filter(franchise=franchise).select_related('admin').order_by("id")
                 if last_seen_id is not None:
                     queryset = queryset.filter(id__gt=last_seen_id)
                 if limit is not None:
@@ -147,7 +147,8 @@ class RestaurantService:
                             name=o.name,
                             slug=o.slug,
                             cover_image=o.cover_image.url if o.cover_image else None,
-                            mid_page_slider=slider_response
+                            mid_page_slider=slider_response,
+                            admin=UserResponse(email=o.admin.email) if o.admin else None
                         )
                     )
                 return OutletObjects(
@@ -156,14 +157,15 @@ class RestaurantService:
                 )
             else:
                 try:
-                    outlet = await Outlet.objects.aget(slug=slug, franchise=franchise)
+                    outlet = await Outlet.objects.select_related('admin').aget(slug=slug, franchise=franchise)
                     slider_imgs = await get_queryset(list, OutletSliderImage.objects.filter(outlet=outlet).order_by("order"))
                     slider_response = [OutletSliderImageObject(image=img.image.url, order=img.order) for img in slider_imgs] if slider_imgs else None
                     return OutletObject(
                         name=outlet.name,
                         slug=outlet.slug,
                         cover_image=outlet.cover_image.url if outlet.cover_image else None,
-                        mid_page_slider=slider_response
+                        mid_page_slider=slider_response,
+                        admin=UserResponse(email=outlet.admin.email) if outlet.admin else None
                     )
                 except Outlet.DoesNotExist:
                     raise HTTPException(
@@ -181,7 +183,7 @@ class RestaurantService:
         try:            
             outlet_objs = []
             slider_prefetch = Prefetch("slider_images",queryset=OutletSliderImage.objects.order_by("order"))
-            async for o in Outlet.objects.prefetch_related(slider_prefetch).filter(franchise=franchise):                
+            async for o in Outlet.objects.select_related('admin').prefetch_related(slider_prefetch).filter(franchise=franchise):                
                 slider_images = []
                 async for img in o.slider_images.all():
                     slider_images.append(OutletSliderImageObject(image=img.image.url, order=img.order))
@@ -190,10 +192,12 @@ class RestaurantService:
                         name=o.name,
                         slug=str(o.slug) if o.slug else "",
                         cover_image=o.cover_image.url if o.cover_image else None,
-                        mid_page_slider=slider_images if slider_images else None
+                        mid_page_slider=slider_images if slider_images else None,
+                        admin=UserResponse(email=o.admin.email) if o.admin else None
                     )
                 )
             return OutletObjectsUser(
+                franchise=FranchiseObject(name=franchise.name, slug=str(franchise.slug) if franchise.slug else ""),
                 outlets=outlet_objs
             )
         except Exception as e:            

@@ -83,7 +83,9 @@ class FranchiseMiddleware:
         subdomain = parts[0] if len(parts) > 2 else None
         scope.setdefault("state", {})                
         if subdomain is not None:
-            if subdomain != '192':
+            if subdomain == 'admin':
+                scope["state"]["franchise"] = None
+            elif subdomain != '192':
                 try:
                     franchise = await Franchise.objects.aget(subdomain=subdomain)
                     scope["state"]["franchise"] = franchise

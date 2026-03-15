@@ -1,15 +1,7 @@
 export const getSubdomain = () => {
   const host = window.location.hostname;
   
-  // --- LOCAL DEV OVERRIDE ---
-  // Change 'admin' to 'dominos' or null to test different views on localhost:5173
-  const LOCAL_DEV_OVERRIDE: string | null = 'admin'; 
-
-  if (host === 'localhost' || host === '127.0.0.1') {
-    return LOCAL_DEV_OVERRIDE;
-  }
-  // ---------------------------
-
+  // Handle local development with subdomains (lvh.me)
   if (host.endsWith('.lvh.me')) {
     const parts = host.split('.');
     if (parts.length > 2) {
@@ -18,10 +10,17 @@ export const getSubdomain = () => {
     return null;
   }
 
-  // Production mapping for dishto.in
+  // Production/Staging mapping for dishto.in
   const parts = host.split('.');
+  
+  // Example: admin.dishto.in (3 parts)
+  // Example: ldce.dishto.in (3 parts)
+  // Example: dishto.in (2 parts)
   if (parts.length > 2) {
-    return parts[0];
+    // If the last two parts are dishto.in, then the first part is the subdomain
+    if (parts[parts.length - 2] === 'dishto' && parts[parts.length - 1] === 'in') {
+      return parts[0];
+    }
   }
   
   return null;

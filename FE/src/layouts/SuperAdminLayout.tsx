@@ -18,7 +18,7 @@ const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans overflow-x-hidden">
+    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
       {/* Sidebar */}
       <aside className="w-72 glass border-r border-slate-200/50 flex flex-col p-6 sticky top-0 h-screen z-20 shrink-0">
         <div className="mb-10 px-4">

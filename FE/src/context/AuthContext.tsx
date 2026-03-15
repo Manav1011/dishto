@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../api';
+import { getSubdomain } from '../utils/subdomain';
 
 interface User {
   email: string;
@@ -14,9 +15,10 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  brandNotFound: boolean;
   login: (credentials: any) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  checkSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,13 +26,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [brandNotFound, setBrandNotFound] = useState(false);
 
   const fetchUserInfo = async () => {
     try {
       const response = await api.get('/protected/auth/user-info');
       const userData = response.data.data || response.data;
       
-      // Map backend 'extras.superadmin' and backend roles to frontend 'role' expected values
       if (userData?.extras?.superadmin) {
         userData.role = 'superadmin';
       } else if (userData?.role === 'franchise_owner') {
@@ -40,15 +42,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       setUser(userData);
-    } catch (error) {
+      setBrandNotFound(false);
+    } catch (error: any) {
       setUser(null);
+      const sub = getSubdomain();
+      // Handle Brand Not Found (404)
+      if (error.response?.status === 404 && sub && sub !== 'admin') {
+        setBrandNotFound(true);
+      } else {
+        setBrandNotFound(false);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Only auto-run on subdomains that are definitely administrative or root
   useEffect(() => {
-    fetchUserInfo();
+    const sub = getSubdomain();
+    // admin.dishto.in or root dishto.in should check session
+    if (sub === 'admin' || !sub) {
+      fetchUserInfo();
+    } else {
+      // For franchise subdomains, we don't block the public page
+      // We set loading to false immediately, and /admin routes will trigger checkSession
+      setLoading(false);
+    }
   }, []);
 
   const login = async (credentials: any) => {
@@ -62,7 +81,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser: fetchUserInfo }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      brandNotFound, 
+      login, 
+      logout, 
+      checkSession: fetchUserInfo 
+    }}>
       {children}
     </AuthContext.Provider>
   );
