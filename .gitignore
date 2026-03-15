@@ -33,3 +33,4 @@ staticfiles/
 
 .venv
 Thumbs.db
+.agent

@@ -10,6 +10,7 @@ This portal is accessed by system administrators building and managing the Disht
 - **Franchise directory**: A table/list view showing all registered franchises.
 - **Create franchise modal/page**: Form to create a new franchise.
 - **Feature subscriptions approval queue**: A page to view all `pending`, `approved`, and `rejected` OutletFeatureRequests. Should allow the superadmin to set custom pricing (`price`) and approve the request.
+- **Account settings / Profile**: A management view allowing the Superadmin to update their profile info or change their password via `/auth/update-profile` and `/auth/update-password`.
 
 ---
 
@@ -20,6 +21,8 @@ This portal is accessed by the owners of a specific franchise (e.g., the owner o
 - **Create outlet page**: A complex form to define a new outlet. Must support uploading the `cover_image` and an array of `mid_page_slider` images via multipart forms.
 - **Outlet details view**: A summary of a single outlet's configuration, their assigned admin, and active feature subscriptions.
 - **Create Outlet Admin**: Interface to invite/create a new admin profile specifically bound to an outlet.
+- **Account Setup / Set Password (Landing Page)**: The destination page from the email invitation link. It parses the URL parameters (`slug` and `set_password_code`) and presents a form for the new admin to choose their password via `POST /auth/set-password`.
+- **Account settings / Profile**: A management view allowing the Franchise Admin to update their personal information or change credentials.
 
 ---
 
@@ -27,9 +30,14 @@ This portal is accessed by the owners of a specific franchise (e.g., the owner o
 This is the heavily featured core management dashboard. An admin of a specific outlet accesses this to run day-to-day operations.
 
 ### General & Setup
+- **Account Setup / Set Password (Landing Page)**: The page new Outlet Admins hit via their welcome email to set their initial password (`POST /auth/set-password`).
 - **Login screen**: Authentication entry point.
 - **Outlet dashboard (Home)**: High-level metrics, active modules, and quick actions.
+- **Account settings / Profile**: For the Outlet Admin to modify their own login credentials and personal profile info.
 - **Feature shop / Subscription management**: A page where the outlet admin can see available features ("Inventory", "Menu", "Ordering"), request to activate/deactivate them, and view their currently active subscriptions with pricing.
+
+### Analytics Module
+- **Monthly Billing Summaries**: Display monthly billing cycles representing financial health based on aggregated order summaries over a month.
 
 ### Menu Module (Only if `menu` feature is active)
 - **Menu builder (Categories list)**: Drag-and-drop or ordered list to view and arrange `MenuCategory` items. Includes a "Create Category" modal.
@@ -55,6 +63,9 @@ This is what the end-users see when they attempt to browse a restaurant's digita
 
 - **Location picker page (Gateway)**: A landing page shown if the user goes to the root domain. Prompts the user to select which specific outlet they are currently visiting (e.g., "Dominos Navrangpura").
 - **Digital menu (Main View)**: The core catalog showing menu categories as tabs/sections and the menu items beneath them with images, prices, and descriptions.
+  - *Must include*: Interactions to show the `mid_page_slider` images specifically set for the outlet.
+  - *Must include*: An interface element (like a heart icon) enabling the user to "Like" an item via the `PATCH /menu/items/.../like` endpoint.
 - **Item details / Customize modal**: Popping up a specific item to read the expanded description and perhaps view current offers/discounts.
 - **Contextual AI search bar**: A highly visible search input leveraging Qdrant vector search so customers can type natural phrases like, "Something sweet and crispy" instead of just exact dish names.
 - **Cart & Checkout interface**: (Assumes `ordering` feature active) Reviewing selected items and placing the `OrderCreateRequest` which automatically handles inventory depletion on the backend.
+- **Order Success / Confirmation**: Once checkout executes successfully, a landing page thanking the user, confirming receipt of the order, and potentially providing tracking statuses.
