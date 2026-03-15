@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand Colors */
+  --brand-orange: #F97316;
+  --brand-orange-hover: #EA580C;
+  
+  /* Background Colors */
+  --bg-deep: #F8FAFC;
+  --bg-card: rgba(255, 255, 255, 0.8);
+  --bg-dark: #020617;
+  --bg-dark-secondary: #0F172A;
+  
+  /* Typography Colors */
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  
+  /* Status Colors */
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-text: #059669;
+  --progress-bg: rgba(14, 165, 233, 0.1);
+  --progress-text: #0284c7;
+  
+  /* Spacing & Radii */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-hero: 2.5rem;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-brand: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Utilities */
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .orange-glow {
+    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+  }
+
+  .tactile {
+    transition: all 0.3s ease;
+  }
+  
+  .tactile:active {
+    transform: scale(0.95);
+  }
+}
