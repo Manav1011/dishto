@@ -35,6 +35,11 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (!user) {
+    // Determine login redirect based on current path
+    const isOutletRoute = location.pathname.match(/^\/([^/]+)\/admin/);
+    if (isOutletRoute && isOutletRoute[1] !== 'admin') {
+      return <Navigate to={`/${isOutletRoute[1]}/admin/login`} state={{ from: location }} replace />;
+    }
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 

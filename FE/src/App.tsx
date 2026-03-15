@@ -16,6 +16,7 @@ import FranchiseHome from './pages/dashboard/FranchiseHome';
 import ManageOutlets from './pages/dashboard/ManageOutlets';
 import TeamManagement from './pages/dashboard/TeamManagement';
 import SetPassword from './pages/auth/SetPassword';
+import OutletLogin from './pages/outlet/OutletLogin';
 
 function App() {
   const status = useHealthCheck();
@@ -51,6 +52,7 @@ function App() {
       <Routes>
         {/* --- Shared Routes --- */}
         <Route path="/admin/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/:outlet_slug/admin/login" element={user ? <Navigate to="/" replace /> : <OutletLogin />} />
         <Route path="/set-password" element={<SetPassword />} />
 
         {/* --- Root Route Logic --- */}
@@ -127,6 +129,13 @@ function App() {
             <FranchiseLayout>
                <ProfileSettings />
             </FranchiseLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* --- Outlet Management Scope --- */}
+        <Route path="/:outlet_slug/admin" element={
+          <ProtectedRoute allowedRoles={['outlet_admin', 'franchise_admin']}>
+             <div className="flex items-center justify-center min-h-screen text-4xl text-emerald-500 font-bold">Outlet Dashboard (Under Construction)</div>
           </ProtectedRoute>
         } />
 
